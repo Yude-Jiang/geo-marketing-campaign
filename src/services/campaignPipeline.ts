@@ -21,6 +21,7 @@ import {
 } from './campaignGeminiService';
 import { runMultiModelVerificationForQuestion } from './multiModelService';
 import { fetchUrlContent } from './geminiService';
+import { enrichIntentDiagnoses } from './intentMetrics';
 
 function newCampaignId() {
   return `camp-${Date.now()}`;
@@ -142,7 +143,7 @@ export async function runCampaignPipeline(
 
   onProgress?.({ stage: 'synthesize_campaign', detail: 'Building campaign plan...' });
   const sourceContext = await gatherSourceContext(input.sourceUrls);
-  const synthesis: CampaignSynthesis = await synthesizeCampaign(
+  const rawSynthesis = await synthesizeCampaign(
     campaign.topic,
     preprocess,
     baselineProbes,
@@ -152,7 +153,14 @@ export async function runCampaignPipeline(
     duration,
     sourceContext,
   );
-  campaign.synthesis = synthesis;
+  campaign.synthesis = {
+    ...rawSynthesis,
+    intentDiagnoses: enrichIntentDiagnoses(
+      preprocess,
+      baselineProbes,
+      rawSynthesis.intentDiagnoses,
+    ),
+  };
   campaign.status = 'ready';
   campaign.updatedAt = new Date().toISOString();
 

@@ -1,6 +1,7 @@
 import express from 'express';
 import helmet from 'helmet';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { GoogleAuth } from 'google-auth-library';
@@ -59,6 +60,23 @@ async function startServer() {
 
   const app = express();
   const port = process.env.PORT || 8080;
+  const distDir = path.join(__dirname, 'dist');
+  const indexHtml = path.join(distDir, 'index.html');
+
+  if (!fs.existsSync(indexHtml)) {
+    console.error(
+      'FATAL: dist/index.html not found. Run `npm run build` before starting the server.',
+    );
+    process.exit(1);
+  }
+
+  const indexContent = fs.readFileSync(indexHtml, 'utf8');
+  if (indexContent.includes('/src/main.tsx')) {
+    console.error(
+      'FATAL: dist/index.html still references /src/main.tsx — production build did not run.',
+    );
+    process.exit(1);
+  }
 
   // Baseline security headers. CSP is disabled because the SPA injects an
   // inline /config.js script tag; COEP is disabled to avoid breaking embeds.
@@ -194,11 +212,20 @@ async function startServer() {
   });
 
   // Serve static files from the build directory
-  app.use(express.static(path.join(__dirname, 'dist')));
+  app.use(express.static(distDir));
 
-  // Support SPA routing (redirect all non-file requests to index.html)
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  app.get('/healthz', (_req, res) => {
+    res.json({ ok: true, hasDist: fs.existsSync(indexHtml) });
+  });
+
+  // SPA fallback — never return HTML for missing JS/CSS assets
+  app.get('*', (req, res, next) => {
+    if (/\.(js|css|map|svg|png|jpg|jpeg|webp|ico|woff2?)$/i.test(req.path)) {
+      return res.status(404).send('Not found');
+    }
+    res.sendFile(indexHtml, (err) => {
+      if (err) next(err);
+    });
   });
 
   app.listen(port, () => {
@@ -206,4 +233,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('Server failed to start:', err);
+  process.exit(1);
+});

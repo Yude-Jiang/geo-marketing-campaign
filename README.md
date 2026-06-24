@@ -13,16 +13,16 @@ npm run dev                  # Vite only — use two terminals or:
 
 For full stack (API proxy + secrets), run `npm run build && npm start` on port 8080.
 
-## Deploy via GitHub → Cloud Run (recommended)
+## Deploy via Cloud Shell (recommended — no JSON keys)
 
-1. Complete one-time GCP setup: [docs/deploy-github-cloud-run.md](docs/deploy-github-cloud-run.md)
-2. Push this repo to GitHub
-3. Add secrets `GCP_PROJECT_ID` and `GCP_SA_KEY`
-4. Push to `main` — GitHub Actions deploys automatically
+1. Open [Cloud Shell](https://shell.cloud.google.com) with project `st-china-ai-force`
+2. Follow [docs/deploy-cloud-shell.md](docs/deploy-cloud-shell.md) (clone repo + `gcloud run deploy --source .`)
 
-Workflow file: `.github/workflows/deploy-cloud-run.yml`
+## Deploy via GitHub Actions (later)
 
-## Deploy locally (alternative)
+Org policy may block SA JSON keys; use WIF when ready. See [docs/deploy-github-cloud-run.md](docs/deploy-github-cloud-run.md).
+
+## Deploy from local machine
 
 **Prerequisites**
 

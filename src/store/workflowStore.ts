@@ -2,8 +2,61 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { UILang } from '../i18n/translations';
 import type { Campaign } from '../types/campaign';
+import { enrichIntentDiagnoses } from '../services/intentMetrics';
 
 export type Ecosystem = 'global' | 'cn' | 'jp' | 'kr';
+
+const STORAGE_VERSION = 2;
+
+function clampStep(step: unknown): 1 | 2 {
+  return step === 2 ? 2 : 1;
+}
+
+function safeProbes(campaign: Campaign): Campaign['probes'] {
+  return Array.isArray(campaign.probes) ? campaign.probes : [];
+}
+
+function normalizeCampaign(campaign: Campaign | null): Campaign | null {
+  if (!campaign) return null;
+  if (!campaign.synthesis?.intentDiagnoses?.length || !campaign.preprocess) {
+    return { ...campaign, probes: safeProbes(campaign) };
+  }
+  const baseline = safeProbes(campaign).filter(p => p.phase === 'baseline');
+  const needsMetrics = campaign.synthesis.intentDiagnoses.some(
+    d => !d.metrics || typeof d.metrics.avgVoidSeverity !== 'number',
+  );
+  if (!needsMetrics) {
+    return { ...campaign, probes: safeProbes(campaign) };
+  }
+  return {
+    ...campaign,
+    probes: safeProbes(campaign),
+    synthesis: {
+      ...campaign.synthesis,
+      intentDiagnoses: enrichIntentDiagnoses(
+        campaign.preprocess,
+        baseline,
+        campaign.synthesis.intentDiagnoses,
+      ),
+    },
+  };
+}
+
+function serializeCampaign(campaign: Campaign | null): Campaign | null {
+  if (!campaign) return null;
+  const normalized = normalizeCampaign(campaign);
+  if (!normalized) return null;
+  return {
+    ...normalized,
+    probes: safeProbes(normalized).map(p => ({
+      ...p,
+      gemini: {
+        ...p.gemini,
+        simulatedAnswer: (p.gemini?.simulatedAnswer || '').slice(0, 2000),
+      },
+    })),
+  };
+}
 
 export interface WorkflowState {
   targetEcosystem: Ecosystem;
@@ -18,7 +71,6 @@ export interface WorkflowState {
   customRegion: string;
   setCustomRegion: (region: string) => void;
 
-  /** Active campaign (discovery → blueprint → report) */
   campaign: Campaign | null;
   setCampaign: (campaign: Campaign | null) => void;
   updateCampaign: (patch: Partial<Campaign>) => void;
@@ -45,15 +97,17 @@ export const useWorkflowStore = create<WorkflowState>()(
       setUiLang: (lang) => set({ uiLang: lang }),
 
       currentStep: 1,
-      setStep: (step) => set({ currentStep: step }),
+      setStep: (step) => set({ currentStep: clampStep(step) }),
 
       customRegion: '',
       setCustomRegion: (region) => set({ customRegion: region }),
 
       campaign: null,
-      setCampaign: (campaign) => set({ campaign }),
+      setCampaign: (campaign) => set({ campaign: normalizeCampaign(campaign) }),
       updateCampaign: (patch) => set((state) => ({
-        campaign: state.campaign ? { ...state.campaign, ...patch, updatedAt: new Date().toISOString() } : null,
+        campaign: state.campaign
+          ? normalizeCampaign({ ...state.campaign, ...patch, updatedAt: new Date().toISOString() })
+          : null,
       })),
 
       discoveryConfirmed: false,
@@ -76,21 +130,39 @@ export const useWorkflowStore = create<WorkflowState>()(
     }),
     {
       name: 'geo-campaign-storage',
-      partialize: (state) => ({
-        ...state,
-        chatHistory: state.chatHistory.slice(-20),
-        // Cap probe simulated answers in localStorage
-        campaign: state.campaign ? {
-          ...state.campaign,
-          probes: state.campaign.probes.map(p => ({
+      version: STORAGE_VERSION,
+      migrate: (persisted: unknown, version) => {
+        const p = (persisted || {}) as Record<string, unknown>;
+        if (version < STORAGE_VERSION) {
+          return {
             ...p,
-            gemini: {
-              ...p.gemini,
-              simulatedAnswer: p.gemini.simulatedAnswer.slice(0, 2000),
-            },
-          })),
-        } : null,
+            currentStep: clampStep(p.currentStep),
+            campaign: p.campaign ? normalizeCampaign(p.campaign as Campaign) : null,
+          };
+        }
+        return p;
+      },
+      partialize: (state) => ({
+        targetEcosystem: state.targetEcosystem,
+        uiLang: state.uiLang,
+        currentStep: clampStep(state.currentStep),
+        customRegion: state.customRegion,
+        discoveryConfirmed: state.discoveryConfirmed,
+        selectedPlaybookIds: state.selectedPlaybookIds,
+        chatHistory: state.chatHistory.slice(-20),
+        campaign: serializeCampaign(state.campaign),
       }),
+      onRehydrateStorage: () => (state, err) => {
+        if (err) {
+          console.warn('Failed to restore saved workflow state', err);
+          return;
+        }
+        if (!state) return;
+        state.currentStep = clampStep(state.currentStep);
+        if (state.campaign) {
+          state.campaign = normalizeCampaign(state.campaign);
+        }
+      },
     }
   )
 );

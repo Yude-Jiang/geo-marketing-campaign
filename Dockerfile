@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npm run build
+RUN npm run build && test -f dist/index.html && ! grep -q '/src/main.tsx' dist/index.html
 
 # Run stage
 FROM node:20-slim

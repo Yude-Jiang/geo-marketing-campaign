@@ -13,7 +13,8 @@ const App: React.FC = () => {
     currentStep, targetEcosystem, setTargetEcosystem, setStep,
     discoveryConfirmed, uiLang, setUiLang,
   } = useWorkflowStore();
-  const t = translations[uiLang];
+  const t = translations[uiLang] ?? translations.en;
+  const activeStep = currentStep === 2 ? 2 : 1;
 
   const ecosystems: { id: Ecosystem; label: string }[] = [
     { id: 'global', label: t.ecosystems.global },
@@ -98,19 +99,19 @@ const App: React.FC = () => {
             <div className="absolute top-1/2 left-[25%] right-[25%] h-0.5 bg-slate-100 -translate-y-1/2 z-0" />
             <div
               className="absolute top-1/2 left-[25%] h-0.5 bg-[#3cb4e6] -translate-y-1/2 z-0 transition-all duration-700"
-              style={{ width: currentStep === 2 ? '50%' : '0%' }}
+              style={{ width: activeStep === 2 ? '50%' : '0%' }}
             />
             {[
               { num: 1 as const, label: t.steps.discovery, icon: Target },
               { num: 2 as const, label: t.steps.blueprint, icon: FileBarChart },
-            ].map((step) => {
-              const isActive = currentStep === step.num;
-              const isPast = currentStep > step.num;
-              const canClick = canGoToStep(step.num);
+            ].map((stepItem) => {
+              const isActive = activeStep === stepItem.num;
+              const isPast = activeStep > stepItem.num;
+              const canClick = canGoToStep(stepItem.num);
               return (
-                <div key={step.num} className="relative z-10 flex flex-col items-center gap-1.5 bg-white px-6">
+                <div key={stepItem.num} className="relative z-10 flex flex-col items-center gap-1.5 bg-white px-6">
                   <button
-                    onClick={() => handleStepClick(step.num)}
+                    onClick={() => handleStepClick(stepItem.num)}
                     disabled={!canClick && !isActive}
                     className={`w-11 h-11 rounded-full flex items-center justify-center font-bold transition-all ${
                       isActive ? 'bg-[#03234b] text-white shadow-lg ring-4 ring-[#3cb4e6]/20'
@@ -118,12 +119,12 @@ const App: React.FC = () => {
                       : 'bg-slate-100 text-slate-300 cursor-not-allowed'
                     }`}
                   >
-                    <step.icon className="w-5 h-5" />
+                    <stepItem.icon className="w-5 h-5" />
                   </button>
                   <span className={`text-[10px] font-black uppercase tracking-wider ${
                     isActive ? 'text-[#03234b]' : isPast ? 'text-[#3cb4e6]' : 'text-slate-300'
                   }`}>
-                    {step.label}
+                    {stepItem.label}
                   </span>
                 </div>
               );
@@ -133,8 +134,8 @@ const App: React.FC = () => {
       </div>
 
       <main className="flex-1 w-full max-w-[95%] mx-auto px-4 py-8">
-        {currentStep === 1 && <StepCampaignDiscovery t={t} />}
-        {currentStep === 2 && <StepCampaignBlueprint t={t} />}
+        {activeStep === 1 && <StepCampaignDiscovery t={t} />}
+        {activeStep === 2 && <StepCampaignBlueprint t={t} />}
       </main>
 
       <footer className="border-t border-slate-200 py-6 text-center bg-white">

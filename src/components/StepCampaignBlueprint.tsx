@@ -140,7 +140,11 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
           </div>
         )}
 
-        {syn.intentDiagnoses.map(ig => (
+        {syn.intentDiagnoses.map(ig => {
+          const stRate = ((ig.metrics?.stMentionRate ?? 0) * 100).toFixed(0);
+          const avgVoid = (ig.metrics?.avgVoidSeverity ?? 0).toFixed(1);
+          const critical = ig.metrics?.criticalVoidCount ?? 0;
+          return (
           <div key={ig.intentGroupId} className="bg-white rounded-2xl border border-slate-100 shadow-lg overflow-hidden">
             <button
               className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50"
@@ -149,7 +153,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
               <div>
                 <h3 className="font-black text-[#03234b]">{ig.label}</h3>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  ST rate {(ig.metrics.stMentionRate * 100).toFixed(0)}% · avg void {ig.metrics.avgVoidSeverity.toFixed(1)} · {ig.metrics.criticalVoidCount} critical
+                  ST rate {stRate}% · avg void {avgVoid} · {critical} critical
                 </p>
               </div>
               {expandedIg === ig.intentGroupId ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
@@ -158,7 +162,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
               <div className="px-6 pb-4 text-sm text-slate-600 border-t border-slate-100 pt-4">{ig.narrative}</div>
             )}
           </div>
-        ))}
+        );})}
 
         <div className="space-y-3">
           <h3 className="text-sm font-black uppercase tracking-widest text-[#03234b] flex items-center gap-2">

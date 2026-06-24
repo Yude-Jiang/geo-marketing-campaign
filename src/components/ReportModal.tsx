@@ -1219,7 +1219,7 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, content, isGenerating, 
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-              © 2026 GEO Strategic Hub • Yude.jiang@st.com
+              {t.footer}
             </span>
           </div>
           <div className="flex items-center gap-2">
