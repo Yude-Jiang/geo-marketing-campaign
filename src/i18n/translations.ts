@@ -1,5 +1,17 @@
 export type UILang = 'zh' | 'en' | 'jp';
 
+// Explicit language names for LLM prompts. Passing the bare code ("jp"/"en")
+// is ambiguous to the model and can yield mixed/wrong-language output; the
+// full name makes generated CONTENT reliably match the selected UI language.
+export const LANG_DISPLAY_NAMES: Record<string, string> = {
+  zh: 'Simplified Chinese (简体中文)',
+  en: 'English',
+  jp: 'Japanese (日本語)',
+};
+
+export const langDisplayName = (lang: string): string =>
+  LANG_DISPLAY_NAMES[lang] || 'English';
+
 export const translations = {
   zh: {
     appTitle: 'GEO 战略工作台',

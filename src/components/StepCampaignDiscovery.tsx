@@ -137,7 +137,7 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const showSkeleton = loading && !campaign?.synthesis;
 
   return (
-    <div className="space-y-6 animate-fade-in pb-24 max-w-5xl mx-auto">
+    <div className="space-y-6 animate-fade-in pb-24 max-w-7xl mx-auto">
       <div className="bg-white rounded-2xl p-8 shadow-xl border border-slate-100">
         <h2 className="text-2xl u-page-title text-[#03234b] flex items-center gap-3">
           <Target className="w-6 h-6 text-[#3cb4e6]" /> {c.discoveryTitle}

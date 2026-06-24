@@ -17,6 +17,7 @@ import type {
   TargetEcosystem,
 } from '../types/campaign';
 import { getGenAI, withRetry } from './geminiService';
+import { langDisplayName } from '../i18n/translations';
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -262,7 +263,7 @@ export async function preprocessSeedQuestions(
 CAMPAIGN TOPIC: ${topic}
 ECOSYSTEM: ${ecosystem}
 REGION: ${region || 'Global'}
-OUTPUT LANGUAGE for labels: ${uiLang}
+OUTPUT LANGUAGE for labels: ${langDisplayName(uiLang)}
 
 ${hasUserQuestions ? `USER SEED QUESTIONS (one per line — preserve exact text):
 ${seedQuestionTexts.map((q, i) => `${i + 1}. ${q}`).join('\n')}
@@ -388,7 +389,7 @@ SCORING CONSISTENCY (mandatory — these fields must not contradict each other):
 - voidSize must track voidSeverity: 1-2=none, 3-4=small, 5-6=medium, 7-8=large, 9-10=critical.
 - primaryFailure="UNKNOWN" is only allowed when stBindingStrength="strong" and voidSeverity<=2.
 
-Language for simulatedAnswer and marketPulse: ${uiLang}
+Language for simulatedAnswer and marketPulse: ${langDisplayName(uiLang)}
 Return JSON only.`;
 
   const result = await withRetry(() =>
@@ -431,7 +432,7 @@ export async function synthesizeCampaign(
 CAMPAIGN TOPIC: ${topic}
 DURATION: ${duration}
 ECOSYSTEM: ${ecosystem} | REGION: ${region || 'Global'}
-OUTPUT LANGUAGE: ${uiLang} — all narrative fields in this language.
+OUTPUT LANGUAGE: ${langDisplayName(uiLang)} — all narrative fields in this language.
 
 PROBE DATA (T0 baseline):
 ${JSON.stringify(probeSummary, null, 2)}

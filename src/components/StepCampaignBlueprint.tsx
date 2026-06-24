@@ -12,7 +12,14 @@ import type { TranslationKeys } from '../i18n/translations';
 const ReportModal = lazy(() => import('./ReportModal'));
 import {
   ArrowLeft, Loader2, FileText, RefreshCw, CheckCircle2, Zap, ChevronDown, ChevronUp,
+  ShieldCheck, AlertTriangle, Gauge, Users, Languages,
 } from 'lucide-react';
+
+const DASH_LABELS = {
+  zh: { st: 'ST 绑定率', void: '平均空洞严重度', critical: '高危空洞', competitors: '主导竞品', of: '共', questions: '题', mismatch: '内容生成语言为', mismatchTail: '，与当前界面语言不一致。请用当前语言重新生成以保持一致。' },
+  en: { st: 'ST binding rate', void: 'Avg void severity', critical: 'Critical voids', competitors: 'Dominant rivals', of: 'of', questions: 'probes', mismatch: 'Content was generated in', mismatchTail: ', which differs from the current UI language. Re-run in the current language to keep them consistent.' },
+  jp: { st: 'ST 露出率', void: '平均空白深刻度', critical: '重大空白', competitors: '主要競合', of: '全', questions: '問', mismatch: 'コンテンツの生成言語は', mismatchTail: 'で、現在のUI言語と異なります。一致させるには現在の言語で再生成してください。' },
+} as const;
 
 const toDisplayText = (value: unknown): string => {
   if (typeof value === 'string') return value;
@@ -37,6 +44,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const setStep = useWorkflowStore(s => s.setStep);
   const selectedPlaybookIds = useWorkflowStore(s => s.selectedPlaybookIds);
   const togglePlaybookId = useWorkflowStore(s => s.togglePlaybookId);
+  const uiLang = useWorkflowStore(s => s.uiLang);
 
   const c = t.campaign;
   const syn = campaign?.synthesis;
@@ -61,6 +69,25 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   }
 
   const latestProgress = campaign.progressSnapshots?.[campaign.progressSnapshots.length - 1];
+
+  // ── Visual KPI dashboard: aggregate the T0 baseline probes into headline
+  // numbers (mirrors the report's metrics so the Blueprint isn't just text). ──
+  const baseline = campaign.probes.filter(p => p.phase === 'baseline');
+  const probeCount = baseline.length;
+  const stMentions = baseline.filter(p => p.gemini?.stMentioned).length;
+  const stRatePct = probeCount ? Math.round((stMentions / probeCount) * 100) : 0;
+  const avgVoidSeverity = probeCount
+    ? baseline.reduce((sum, p) => sum + (p.gemini?.voidSeverity || 0), 0) / probeCount
+    : 0;
+  const criticalVoids = baseline.filter(
+    p => p.gemini?.voidSize === 'critical' || p.gemini?.voidSize === 'large',
+  ).length;
+  const competitorSet = new Set(
+    baseline.flatMap(p => p.gemini?.dominantCompetitors || []),
+  );
+  const langMismatch = campaign.uiLang !== uiLang;
+  const severityColor = (sev: number) =>
+    sev >= 7 ? '#ef4444' : sev >= 5 ? '#f59e0b' : sev >= 3 ? '#3cb4e6' : '#10b981';
 
   const handleGenerateReport = async () => {
     setReportContent('');
@@ -155,6 +182,41 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
           </div>
         </div>
 
+        {langMismatch && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+            <Languages className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-[13px] text-amber-900 leading-relaxed">
+              {(DASH_LABELS[uiLang] ?? DASH_LABELS.en).mismatch}{' '}
+              <strong>{campaign.uiLang.toUpperCase()}</strong>
+              {(DASH_LABELS[uiLang] ?? DASH_LABELS.en).mismatchTail}
+            </p>
+          </div>
+        )}
+
+        {(() => {
+          const d = DASH_LABELS[uiLang] ?? DASH_LABELS.en;
+          const cards = [
+            { icon: ShieldCheck, label: d.st, value: `${stRatePct}%`, sub: `${stMentions} ${d.of} ${probeCount} ${d.questions}`, color: stRatePct >= 50 ? '#10b981' : stRatePct >= 25 ? '#f59e0b' : '#ef4444' },
+            { icon: Gauge, label: d.void, value: avgVoidSeverity.toFixed(1), sub: '/ 10', color: severityColor(avgVoidSeverity) },
+            { icon: AlertTriangle, label: d.critical, value: String(criticalVoids), sub: `${d.of} ${probeCount}`, color: criticalVoids > 0 ? '#ef4444' : '#10b981' },
+            { icon: Users, label: d.competitors, value: String(competitorSet.size), sub: [...competitorSet].slice(0, 2).join(', '), color: '#03234b' },
+          ];
+          return (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {cards.map((card, i) => (
+                <div key={i} className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <card.icon className="w-4 h-4" style={{ color: card.color }} />
+                    <span className="u-eyebrow text-[#5f6f85]">{card.label}</span>
+                  </div>
+                  <div className="text-3xl font-black leading-none" style={{ color: card.color }}>{card.value}</div>
+                  <div className="text-[11px] text-slate-400 mt-1.5 truncate">{card.sub || '—'}</div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
         {latestProgress && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
             <h3 className="text-[13px] font-bold text-emerald-800 mb-2">{c.progressTitle} (Day {latestProgress.daysSinceBaseline})</h3>
@@ -172,13 +234,22 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
               className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50"
               onClick={() => setExpandedIg(expandedIg === ig.intentGroupId ? null : ig.intentGroupId)}
             >
-              <div>
+              <div className="flex-1 min-w-0 mr-4">
                 <h3 className="font-bold text-[#03234b]">{ig.label}</h3>
                 <p className="text-[11px] text-[#5f6f85] mt-1">
                   ST rate {stRate}% · avg void {avgVoid} · {critical} critical
                 </p>
+                <div className="mt-2 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, (Number(avgVoid) / 10) * 100)}%`,
+                      backgroundColor: severityColor(Number(avgVoid)),
+                    }}
+                  />
+                </div>
               </div>
-              {expandedIg === ig.intentGroupId ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              {expandedIg === ig.intentGroupId ? <ChevronUp className="w-5 h-5 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 flex-shrink-0" />}
             </button>
             {expandedIg === ig.intentGroupId && (
               <div className="px-6 pb-4 text-sm text-slate-600 border-t border-slate-100 pt-4">{toDisplayText(ig.narrative)}</div>

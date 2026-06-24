@@ -5,6 +5,7 @@
  */
 
 import { GEMINI_MODELS } from '../config/models';
+import { langDisplayName } from '../i18n/translations';
 
 export { GEMINI_MODELS };
 
@@ -173,7 +174,7 @@ export const chatWithAssistant = async (
       { role: 'user', parts: [{ text: message }] },
     ],
     config: {
-      systemInstruction: `Expert GEO Campaign Assistant. UI Lang: ${uiLang}. Context: ${JSON.stringify(contextData)}`,
+      systemInstruction: `Expert GEO Campaign Assistant. Always reply in ${langDisplayName(uiLang)}. Context: ${JSON.stringify(contextData)}`,
     },
   });
   return response.text;
@@ -360,12 +361,13 @@ ${JSON.stringify(p.progressSnapshot.intentGroupDeltas, null, 2)}
 TASK: Generate a GEO Marketing Campaign Report in TWO formats:
 1) %%MD_START%%...%%MD_END%%
 2) %%HTML_BODY_START%%...%%HTML_BODY_END%%
-OUTPUT LANGUAGE: [${c.uiLang}] only.
+OUTPUT LANGUAGE: ${langDisplayName(c.uiLang)} only — every heading, label and sentence in this language.
 
 CRITICAL QUALITY RULES:
-- This report must feel like a strategic war-archive, not plain text notes.
-- Use timeline/archive presentation structure, with strong visual hierarchy.
-- Do NOT collapse intent analysis into one sentence.
+- SCANNABILITY FIRST: an executive must grasp the situation in 30 seconds. Lead with conclusions, then evidence. Prefer bullets, cards, tables and visual indicators over paragraphs. NO walls of text.
+- BREVITY: every bullet ≤ 25 words. Never write 3 sentences where 1 sharp bullet works. Cut adjectives and filler; keep numbers, causality and the action.
+- VISUAL HIERARCHY: use the styled cards/tables/timeline structure for emphasis. Put the single most important number or risk in large/bold form per section.
+- Open the report with a "Key Takeaways" card (3-5 one-line bullets) that a reader could act on without reading the rest.
 - DATA INTEGRITY (highest priority): the header 档案编号, 情报来源/模型名, and 报告日期 MUST be the exact archiveId / groundingModel / reportDate values from REPORT METADATA. NEVER invent an archive number, model version (e.g. do not write "Gemini 1.5 Pro" or any version you were not given), or date.
 - DEGRADED SYNTHESIS: if synthesisDegraded is true, the campaign synthesis failed to parse and most sections are empty. Render a prominent red warning banner at the very top ("⚠ 本报告合成数据不完整 — synthesis 解析失败,请重跑") and do NOT fabricate brief/intent/playbook content to fill the gaps.
 - NO FABRICATION: every model-specific claim, competitor corpus-advantage claim, and metric must trace to provided probe/snapshot data. If data is absent, state "数据缺失/待补充" — never speculate to fill a section.
@@ -377,8 +379,10 @@ CRITICAL QUALITY RULES:
 - Every major claim must map to concrete probe evidence.
 
 MANDATORY HTML BODY STRUCTURE (use these section labels exactly):
+0) <div class="sec-label">Key Takeaways</div>
+   - 3-5 one-line bullets, each ≤ 20 words: the headline finding + the decision/action it implies. This is the TL;DR an exec reads first.
 1) <div class="sec-label">Archive Snapshot</div>
-   - 4-card summary (risk/opportunity/ST visibility/priority)
+   - 4-card summary (risk/opportunity/ST visibility/priority), each card = 1 big number + ≤ 6-word label
 2) <div class="sec-label">Timeline: T0 → T30 → T60 → T90</div>
    - Present as a true timeline table with milestones, actions, expected GEO signal lift
 3) <div class="sec-label">Gemini Simulation Executive Evidence</div>
@@ -391,18 +395,19 @@ MANDATORY HTML BODY STRUCTURE (use these section labels exactly):
    - At least top 5 competitors
    - For each competitor: threat level, why AI prefers them (corpus advantage), weak spot, interception action
    - Must be evidence-based from probes and model outputs, not generic statements
-6) <div class="sec-label">Intent Deep-Dive (Not One-Line)</div>
-   - For each intent group: metrics + failure diagnosis + root cause + repair logic + linked playbooks
+6) <div class="sec-label">Intent Deep-Dive</div>
+   - For each intent group, a compact card: metrics (as inline stat chips) + 1-line root cause + 1-line repair logic + linked playbook tags. Max ~3 bullets per group — depth via precision, not length.
 7) <div class="sec-label">GEO Cognitive Baseline Table</div>
 8) <div class="sec-label">Playbook Deployment Board</div>
 9) <div class="sec-label">Innovation Lab</div>
 10) <div class="sec-label">Execution Checklist</div>
 
-MANDATORY DEPTH RULES:
-- Intent section: minimum 5-8 sentences per intent group.
-- Four-LLM section: depth requirement applies ONLY when hasRealMultiModel is true; when false, the section is a single status card and the minimum-block rule is VOID (do not pad it).
-- Timeline section: include phase goals, channel actions, KPI targets, and probe checkpoints.
-- Avoid fluff adjectives; prioritize evidence + causality + actionability.
+BREVITY & SCANNABILITY RULES:
+- Intent section: max ~3 tight bullets per intent group (root cause, repair, linked playbooks). Precision over volume — never pad to hit a length.
+- Four-LLM section: when hasRealMultiModel is false, render a single status card and STOP (no padding).
+- Timeline: a compact table (phase goal, key action, KPI target, probe checkpoint) — one row per phase, not prose.
+- Competitor matrix: a table, one row per competitor (≤ 8 words per cell), not paragraphs.
+- Avoid fluff adjectives; every line must carry a number, a cause, or an action. If it doesn't, delete it.
 
 DATA:
 ${data}`;
@@ -431,7 +436,7 @@ export const generateProgressNarrative = async (
     contents: [{
       role: 'user',
       parts: [{ text: `Write 2-3 paragraphs interpreting campaign GEO probe progress for executives.
-Language: ${campaign.uiLang}
+Language: ${langDisplayName(campaign.uiLang)}
 Topic: ${campaign.topic}
 Days since baseline: ${snapshot.daysSinceBaseline}
 Question deltas: ${JSON.stringify(snapshot.questionDeltas)}
