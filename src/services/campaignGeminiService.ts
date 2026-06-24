@@ -77,9 +77,154 @@ const probeSchema = {
   ],
 };
 
+const strList = { type: Type.ARRAY, items: { type: Type.STRING } };
+
+// Stage ④ — full synthesis schema so the model can't return a malformed /
+// half-empty object that silently degrades into a hollow report.
+const synthesisSchema = {
+  type: Type.OBJECT,
+  properties: {
+    executiveSummary: { type: Type.STRING },
+    innovationPlays: strList,
+    brief: {
+      type: Type.OBJECT,
+      properties: {
+        source: { type: Type.STRING },
+        objectives: {
+          type: Type.OBJECT,
+          properties: { positioning: strList, commercial: strList, enablement: strList },
+        },
+        audience: {
+          type: Type.OBJECT,
+          properties: {
+            primary: strList, secondary: strList,
+            geographies: strList, funnelFocus: strList,
+          },
+        },
+        offer: {
+          type: Type.OBJECT,
+          properties: {
+            summary: { type: Type.STRING }, productLines: strList,
+            painPoints: strList, differentiators: strList,
+          },
+        },
+        market: {
+          type: Type.OBJECT,
+          properties: {
+            keyApplications: strList,
+            competitorsByLine: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: { line: { type: Type.STRING }, competitors: strList },
+              },
+            },
+            competitiveStrategy: strList,
+          },
+        },
+        geoKpis: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              phase: { type: Type.STRING },
+              targets: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    label: { type: Type.STRING }, metric: { type: Type.STRING },
+                    baseline: { type: Type.STRING }, target: { type: Type.STRING },
+                  },
+                },
+              },
+            },
+          },
+        },
+        timeline: {
+          type: Type.OBJECT,
+          properties: {
+            preparation: { type: Type.STRING }, production: { type: Type.STRING },
+            launch: { type: Type.STRING }, probeSchedule: strList,
+          },
+        },
+        channelMixSuggestion: { type: Type.STRING },
+        budgetTier: { type: Type.STRING },
+      },
+    },
+    intentDiagnoses: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          intentGroupId: { type: Type.STRING },
+          label: { type: Type.STRING },
+          questionIds: strList,
+          probeIds: strList,
+          metrics: {
+            type: Type.OBJECT,
+            properties: {
+              questionCount: { type: Type.NUMBER },
+              stMentionRate: { type: Type.NUMBER },
+              avgVoidSeverity: { type: Type.NUMBER },
+              criticalVoidCount: { type: Type.NUMBER },
+              dominantCompetitors: strList,
+              primaryFailure: { type: Type.STRING },
+            },
+          },
+          narrative: { type: Type.STRING },
+          failureDiagnosis: {
+            type: Type.OBJECT,
+            properties: {
+              primaryFailure: { type: Type.STRING },
+              severity: { type: Type.STRING },
+              explanation: { type: Type.STRING },
+              repairUrgency: { type: Type.NUMBER },
+            },
+          },
+          recommendedPlaybookIds: strList,
+        },
+        required: ['intentGroupId', 'label', 'narrative'],
+      },
+    },
+    playbooks: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING },
+          intentGroupIds: strList,
+          targetQuestionIds: strList,
+          funnelStage: { type: Type.STRING },
+          effortTier: { type: Type.STRING },
+          sourceLogic: { type: Type.STRING },
+          tacticsType: { type: Type.STRING },
+          contentPlatform: { type: Type.STRING },
+          structuredDataStrategy: { type: Type.STRING },
+          geoAction: { type: Type.STRING },
+          targetSnippet: { type: Type.STRING },
+          anchorIds: strList,
+        },
+        required: ['geoAction', 'tacticsType', 'targetSnippet'],
+      },
+    },
+  },
+  required: ['brief', 'intentDiagnoses', 'playbooks', 'executiveSummary', 'innovationPlays'],
+};
+
 function parseJson<T>(text: string): T {
   const cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/i, '$1').trim();
-  return JSON.parse(cleaned) as T;
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    // Fallback: salvage the outermost JSON object if the model wrapped it in prose.
+    const first = cleaned.indexOf('{');
+    const last = cleaned.lastIndexOf('}');
+    if (first !== -1 && last > first) {
+      return JSON.parse(cleaned.slice(first, last + 1)) as T;
+    }
+    throw new SyntaxError('No parseable JSON object found in model output');
+  }
 }
 
 function newId(prefix: string) {
@@ -150,14 +295,65 @@ Return JSON only.`;
     intentGroups: SeedQuestionPreprocessResult['intentGroups'];
   }>(result.text || '{}');
 
+  if (!Array.isArray(raw.questions) || raw.questions.length === 0) {
+    throw new Error('Preprocess returned no questions — cannot run probes. Check seed input / model output.');
+  }
+
   return {
     questions: raw.questions,
-    intentGroups: raw.intentGroups,
+    intentGroups: Array.isArray(raw.intentGroups) ? raw.intentGroups : [],
     preprocessedAt: new Date().toISOString(),
   };
 }
 
 // ─── ② Per-question Gemini probe ─────────────────────────────────────────────
+
+/**
+ * Deterministic post-processing: clamp ranges and reconcile the four mutually
+ * dependent fields (binding ↔ severity ↔ voidSize ↔ failure) so the probe can
+ * never contain self-contradictory signals (e.g. ST absent but voidSeverity=0).
+ * voidSeverity is treated as the single source of truth for voidSize.
+ */
+function normalizeProbe(s: GeminiProbeSnapshot): GeminiProbeSnapshot {
+  const binding = (['none', 'weak', 'strong'].includes(s.stBindingStrength)
+    ? s.stBindingStrength
+    : 'none') as GeminiProbeSnapshot['stBindingStrength'];
+  const stMentioned = binding === 'none' ? false : (s.stMentioned ?? true);
+  const competitors = Array.isArray(s.dominantCompetitors) ? s.dominantCompetitors : [];
+
+  // 1) clamp severity, then reconcile against binding
+  let severity = Math.round(Number(s.voidSeverity));
+  if (!Number.isFinite(severity)) severity = stMentioned ? 3 : 7;
+  severity = Math.min(10, Math.max(1, severity));
+  if (!stMentioned) severity = Math.max(severity, 6);   // absence is never a trivial void
+  if (binding === 'strong') severity = Math.min(severity, 4); // strong binding ⇒ small void
+
+  // 2) derive voidSize from the reconciled severity (single source of truth)
+  const voidSize: GeminiProbeSnapshot['voidSize'] =
+    severity >= 9 ? 'critical' :
+    severity >= 7 ? 'large' :
+    severity >= 5 ? 'medium' :
+    severity >= 3 ? 'small' : 'none';
+
+  // 3) reconcile primaryFailure with presence/absence
+  let failure = s.primaryFailure || 'UNKNOWN';
+  if (!stMentioned && (failure === 'UNKNOWN' || !failure)) {
+    failure = competitors.length ? 'COMPETITOR_DOMINANCE' : 'CORPUS_ABSENCE';
+  }
+  if (binding === 'strong' && (failure === 'CORPUS_ABSENCE' || failure === 'COMPETITOR_DOMINANCE')) {
+    failure = severity <= 2 ? 'UNKNOWN' : 'STRUCTURAL_WEAKNESS';
+  }
+
+  return {
+    ...s,
+    stMentioned,
+    stBindingStrength: binding,
+    voidSeverity: severity,
+    voidSize,
+    dominantCompetitors: competitors,
+    primaryFailure: failure as GeminiProbeSnapshot['primaryFailure'],
+  };
+}
 
 export async function runGeminiQuestionProbe(
   campaignTopic: string,
@@ -186,6 +382,12 @@ Simulate how AI would answer today. Then analyse:
 - categoryUnderstood (only if category tier)
 - anchorStatus (verified/partial/unverified) if expectedAnchor provided
 
+SCORING CONSISTENCY (mandatory — these fields must not contradict each other):
+- If stMentioned=false, ST is absent → voidSeverity MUST be >= 6, voidSize MUST be medium/large/critical, and primaryFailure MUST be COMPETITOR_DOMINANCE (if competitors are listed) or CORPUS_ABSENCE (if not). voidSize "none"/"small" with stMentioned=false is forbidden.
+- If stBindingStrength="strong", voidSeverity MUST be <= 4 and primaryFailure must NOT be CORPUS_ABSENCE or COMPETITOR_DOMINANCE (ST is present); use STRUCTURAL_WEAKNESS/ATTRIBUTE_MISMATCH/UNKNOWN instead.
+- voidSize must track voidSeverity: 1-2=none, 3-4=small, 5-6=medium, 7-8=large, 9-10=critical.
+- primaryFailure="UNKNOWN" is only allowed when stBindingStrength="strong" and voidSeverity<=2.
+
 Language for simulatedAnswer and marketPulse: ${uiLang}
 Return JSON only.`;
 
@@ -200,7 +402,7 @@ Return JSON only.`;
     })
   );
 
-  return parseJson<GeminiProbeSnapshot>(result.text || '{}');
+  return normalizeProbe(parseJson<GeminiProbeSnapshot>(result.text || '{}'));
 }
 
 // ─── ③④ Campaign synthesis (intent roll-up + brief + playbooks) ─────────────
@@ -255,20 +457,53 @@ Return valid JSON matching the structure.`;
     getGenAI().models.generateContent({
       model: GEMINI_MODELS.analysis,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: { responseMimeType: 'application/json' },
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: synthesisSchema as any,
+      },
     })
   );
 
-  const parsed = parseJson<{
+  let parsed: {
     brief: CampaignBriefDraft;
     intentDiagnoses: IntentGroupDiagnosis[];
     playbooks: CampaignPlaybook[];
     executiveSummary: string;
     innovationPlays: string[];
-  }>(result.text || '{}');
+  };
+  let degraded = false;
+  try {
+    parsed = parseJson(result.text || '{}');
+  } catch (firstErr) {
+    // With responseSchema this should be rare. One repair attempt before degrading.
+    console.warn('[synthesizeCampaign] first parse failed, attempting JSON repair…', firstErr);
+    try {
+      const repair = await getGenAI().models.generateContent({
+        model: GEMINI_MODELS.analysis,
+        contents: [{ role: 'user', parts: [{ text:
+          `The following text should be a single valid JSON object but failed to parse. Return ONLY the corrected JSON, no prose, no code fences.\n\n${(result.text || '').slice(0, 12000)}` }] }],
+        config: { responseMimeType: 'application/json', responseSchema: synthesisSchema as any },
+      });
+      parsed = parseJson(repair.text || '{}');
+    } catch (secondErr) {
+      // Degrade gracefully — but FLAG it so the report/UI never presents an
+      // empty shell as a complete plan. Intent metrics are still recomputed
+      // deterministically downstream via enrichIntentDiagnoses.
+      console.error('[synthesizeCampaign] JSON parse failed after repair, degrading:', secondErr);
+      degraded = true;
+      parsed = {
+        brief: {} as CampaignBriefDraft,
+        intentDiagnoses: [],
+        playbooks: [],
+        executiveSummary: '',
+        innovationPlays: [],
+      };
+    }
+  }
 
   return {
     synthesizedAt: new Date().toISOString(),
+    degraded,
     brief: parsed.brief,
     intentDiagnoses: parsed.intentDiagnoses || [],
     playbooks: (parsed.playbooks || []).map(pb => ({
