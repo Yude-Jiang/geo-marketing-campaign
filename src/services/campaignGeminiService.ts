@@ -3,7 +3,7 @@
  * CN real-model probes stay in multiModelService + /api/multi-model-probe.
  */
 
-import { Type } from '@google/genai';
+import { Type, type Schema } from '@google/genai';
 import { GEMINI_MODELS } from '../config/models';
 import type {
   CampaignBriefDraft,
@@ -285,7 +285,7 @@ Return JSON only.`;
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         responseMimeType: 'application/json',
-        responseSchema: preprocessSchema as any,
+        responseSchema: preprocessSchema as Schema,
       },
     })
   );
@@ -397,7 +397,7 @@ Return JSON only.`;
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         responseMimeType: 'application/json',
-        responseSchema: probeSchema as any,
+        responseSchema: probeSchema as Schema,
       },
     })
   );
@@ -459,7 +459,7 @@ Return valid JSON matching the structure.`;
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         responseMimeType: 'application/json',
-        responseSchema: synthesisSchema as any,
+        responseSchema: synthesisSchema as Schema,
       },
     })
   );
@@ -482,7 +482,7 @@ Return valid JSON matching the structure.`;
         model: GEMINI_MODELS.analysis,
         contents: [{ role: 'user', parts: [{ text:
           `The following text should be a single valid JSON object but failed to parse. Return ONLY the corrected JSON, no prose, no code fences.\n\n${(result.text || '').slice(0, 12000)}` }] }],
-        config: { responseMimeType: 'application/json', responseSchema: synthesisSchema as any },
+        config: { responseMimeType: 'application/json', responseSchema: synthesisSchema as Schema },
       });
       parsed = parseJson(repair.text || '{}');
     } catch (secondErr) {

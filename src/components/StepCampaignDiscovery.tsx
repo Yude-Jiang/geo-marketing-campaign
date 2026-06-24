@@ -119,8 +119,8 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
         .filter(pb => pb.effortTier !== 'L')
         .map(pb => pb.id) || [];
       setSelectedPlaybookIds(p0.length ? p0 : result.synthesis?.playbooks.map(pb => pb.id) || []);
-    } catch (err: any) {
-      setError(err?.message || c.errorMsg);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : c.errorMsg);
     } finally {
       setLoading(false);
     }

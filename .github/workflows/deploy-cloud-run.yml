@@ -47,13 +47,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Non-blocking: surfaces lint issues without gating deploy while the
-      # existing codebase still has pre-existing lint errors to clean up.
+      # Blocking gates: lint and a failed production build both stop the deploy.
       - name: Lint
         run: npm run lint
-        continue-on-error: true
 
-      # Blocking gate: a failed production build must stop the deploy.
       - name: Build
         run: npm run build
 

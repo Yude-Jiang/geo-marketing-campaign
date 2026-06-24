@@ -52,10 +52,11 @@ async function callViaProxy(
       return { rawResponse: '', latencyMs: 0, error: err.error || `HTTP ${res.status}` };
     }
     return res.json();
-  } catch (err: any) {
+  } catch (err) {
     clearTimeout(timer);
-    const isTimeout = err?.name === 'AbortError';
-    return { rawResponse: '', latencyMs: 0, error: isTimeout ? 'Request timeout' : (err?.message || 'Network error') };
+    const isTimeout = err instanceof Error && err.name === 'AbortError';
+    const message = err instanceof Error ? err.message : 'Network error';
+    return { rawResponse: '', latencyMs: 0, error: isTimeout ? 'Request timeout' : message };
   }
 }
 
@@ -108,11 +109,11 @@ async function queryModel(modelId: ModelId, modelName: string, prompt: string): 
       sentiment: inferSentiment(result.rawResponse),
       latencyMs: result.latencyMs || (Date.now() - t0),
     };
-  } catch (err: any) {
+  } catch (err) {
     return {
       modelId, modelName, rawResponse: '', keyEntities: [],
       sentiment: 'neutral', latencyMs: Date.now() - t0,
-      error: err?.message || 'Unknown error',
+      error: err instanceof Error ? err.message : 'Unknown error',
     };
   }
 }
@@ -188,7 +189,7 @@ Based on your training data, answer these questions about the following product/
 
 Be direct and concise (max 200 words). Mention specific product names, model numbers, or brand names where possible.`;
 
-  return runMultiModelProbe(probe, uiLang);
+  return runMultiModelProbe(probe);
 }
 
 /**
@@ -206,12 +207,11 @@ Answer this question as an AI assistant would today:
 "${questionText.slice(0, 500)}"
 
 Mention specific semiconductor vendors, product families, and part numbers where relevant. Be direct (max 200 words).`;
-  return runMultiModelProbe(probe, uiLang);
+  return runMultiModelProbe(probe);
 }
 
 async function runMultiModelProbe(
   probe: string,
-  _uiLang: string,
 ): Promise<MultiModelVerificationResult> {
   // a snapshot with error 'API key not configured' from the proxy.
   const [deepseekSnapshot, qwenSnapshot, doubaoSnapshot, kimiSnapshot] = await Promise.all([

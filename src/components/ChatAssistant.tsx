@@ -18,7 +18,7 @@ const ChatAssistant: React.FC = () => {
     currentStep
   } = useWorkflowStore();
   
-  const t = translations[uiLang] as any;
+  const t = translations[uiLang];
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {

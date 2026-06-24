@@ -72,9 +72,10 @@ export const getGenAI = () => ({
   },
 });
 
-export const parseRetrySeconds = (err: any): number | null => {
+export const parseRetrySeconds = (err: unknown): number | null => {
   try {
-    const raw = typeof err?.message === 'string' ? JSON.parse(err.message) : err;
+    const message = (err as { message?: unknown })?.message;
+    const raw = typeof message === 'string' ? JSON.parse(message) : err;
     const details = raw?.error?.details || [];
     for (const d of details) {
       if (d?.retryDelay) {
@@ -89,9 +90,10 @@ export const parseRetrySeconds = (err: any): number | null => {
   return null;
 };
 
-const is429 = (err: any): boolean => {
+const is429 = (err: unknown): boolean => {
   try {
-    const raw = typeof err?.message === 'string' ? JSON.parse(err.message) : err;
+    const message = (err as { message?: unknown })?.message;
+    const raw = typeof message === 'string' ? JSON.parse(message) : err;
     return raw?.error?.code === 429 || raw?.error?.status === 'RESOURCE_EXHAUSTED';
   } catch { return false; }
 };
@@ -118,11 +120,11 @@ export const withRetry = async <T>(
   onCountdown?: (secondsLeft: number) => void,
   maxRetries = 3,
 ): Promise<T> => {
-  let lastErr: any;
+  let lastErr: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
-    } catch (err: any) {
+    } catch (err) {
       lastErr = err;
       if (is429(err) && attempt < maxRetries) {
         const seconds = parseRetrySeconds(err) || 60;

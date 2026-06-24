@@ -9,7 +9,6 @@ import type {
   CampaignCreateInput,
   CampaignDurationType,
   CampaignPipelineProgress,
-  CampaignSynthesis,
   ProbePhase,
   QuestionProbe,
   TargetEcosystem,

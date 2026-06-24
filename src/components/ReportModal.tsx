@@ -2,13 +2,14 @@ import React from 'react';
 import { X, Download, Loader2, FileText, Code2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import type { TranslationKeys } from '../i18n/translations';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   content: string;
   isGenerating: boolean;
-  t: any;
+  t: TranslationKeys;
 }
 
 
@@ -60,7 +61,7 @@ function postProcessHtml(html: string): string {
 
   // 4. Extract bold numbers/stats into stat cards row at top of each section
   // Find patterns like <strong>数字 + 单位</strong> in the exec summary section
-  const statPattern = /<strong>(\d[\d,\.]*\s*(?:%|倍|x|USD|美元|\$|个|篇|条))<\/strong>/g;
+  const statPattern = /<strong>(\d[\d,.]*\s*(?:%|倍|x|USD|美元|\$|个|篇|条))<\/strong>/g;
   const execSummaryMatch = html.match(/(<div class="sec-header">[^<]*(?:摘要|Summary|Overview)[^<]*<\/div>)([\s\S]*?)(?=<div class="sec-header">)/);
   if (execSummaryMatch) {
     const sectionBody = execSummaryMatch[2];
@@ -71,7 +72,7 @@ function postProcessHtml(html: string): string {
     }
     if (stats.length >= 2) {
       const statCards = stats.slice(0, 4).map(s => {
-        const parts = s.match(/^([\d,\.]+)\s*(.*)$/);
+        const parts = s.match(/^([\d,.]+)\s*(.*)$/);
         const num = parts ? parts[1] : s;
         const unit = parts ? parts[2] : '';
         return `<div class="stat-card"><div class="stat-num">${num}</div><div class="stat-label">${unit}</div></div>`;
@@ -88,7 +89,7 @@ function postProcessHtml(html: string): string {
         inner.includes('CoreMark') || inner.includes('Before') || inner.includes('优化前')) {
       // Add progress bars to td cells that are pure numbers or percentages
       const withBars = inner.replace(
-        /<td>(\d[\d,\.]*\s*%?)<\/td>/g,
+        /<td>(\d[\d,.]*\s*%?)<\/td>/g,
         (_, val) => {
           const num = parseFloat(val.replace(/[,%]/g, ''));
           const pct = Math.min(100, num > 100 ? num / 10 : num);
