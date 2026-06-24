@@ -64,7 +64,12 @@ async function runProbesForQuestions(
 
   const questions = preprocess.questions;
   const probes: QuestionProbe[] = [];
-  const runCnMulti = ecosystem === 'cn';
+  // Run CN multi-model probes when the ecosystem is 'cn', OR when the region
+  // clearly points to mainland China even if the ecosystem tag wasn't set to
+  // 'cn'. Without this fallback a China campaign mis-tagged as global would
+  // silently skip real probes and fall back to Gemini-simulated baselines only.
+  const regionIsCn = /\b(cn|china|prc)\b|中国|大陆|大陸/i.test(region || '');
+  const runCnMulti = ecosystem === 'cn' || regionIsCn;
 
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
