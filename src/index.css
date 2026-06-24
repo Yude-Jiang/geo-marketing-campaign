@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', 'PingFang SC', 'Noto Sans SC', 'Hiragino Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 body {
@@ -10,6 +10,99 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f8fafc;
+}
+
+/* ── Typography utilities ── */
+.u-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #5f6f85;
+}
+
+.u-caption {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #5f6f85;
+}
+
+.u-page-title {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+[data-lang="zh"] .u-eyebrow,
+[data-lang="jp"] .u-eyebrow,
+[data-lang="zh"] .u-caption,
+[data-lang="jp"] .u-caption {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+}
+
+[data-lang="zh"] .u-page-title,
+[data-lang="jp"] .u-page-title {
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+[data-lang="zh"] .prose h1,
+[data-lang="jp"] .prose h1 {
+  text-transform: none !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* ── Buttons ── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #03234b;
+  color: #fff;
+  font-weight: 800;
+  border-radius: 0.75rem;
+  transition: background-color 0.15s;
+}
+.btn-primary:hover:not(:disabled) { background-color: #0a3d7a; }
+.btn-primary:disabled { opacity: 0.4; }
+
+.btn-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #ffd200;
+  color: #03234b;
+  font-weight: 800;
+  border-radius: 0.75rem;
+  transition: background-color 0.15s;
+}
+.btn-accent:hover:not(:disabled) { background-color: #ffe24d; }
+.btn-accent:disabled { opacity: 0.5; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-ghost:hover:not(:disabled) { border-color: #3cb4e6; color: #03234b; }
+.btn-ghost:disabled { opacity: 0.5; }
+
+.skeleton-block {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background-color: #e2e8f0;
+  border-radius: 0.75rem;
 }
 
 /* Premium Typography Overrides for GEO Strategic Hub */

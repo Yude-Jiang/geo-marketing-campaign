@@ -129,15 +129,15 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h2 className="text-xl font-black uppercase text-[#03234b]">{c.blueprintTitle}</h2>
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#8191a5]">{campaign.topic}</p>
+              <h2 className="text-xl u-page-title text-[#03234b]">{c.blueprintTitle}</h2>
+              <p className="u-eyebrow mt-0.5">{campaign.topic}</p>
             </div>
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleReprobe}
               disabled={isReprobing}
-              className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-[#3cb4e6] disabled:opacity-50"
+              className="btn-ghost px-4 py-2.5 text-[11px] disabled:opacity-50"
             >
               {isReprobing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               {c.reprobeBtn}
@@ -145,7 +145,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
             <button
               onClick={handleGenerateReport}
               disabled={isGeneratingReport}
-              className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#ffd200] to-[#f5c400] text-[#03234b] rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+              className="btn-accent px-6 py-2.5 text-[11px] disabled:opacity-50"
             >
               {isGeneratingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
               {c.reportBtn}
@@ -155,7 +155,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
         {latestProgress && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
-            <h3 className="text-xs font-black uppercase text-emerald-800 mb-2">{c.progressTitle} (Day {latestProgress.daysSinceBaseline})</h3>
+            <h3 className="text-[13px] font-bold text-emerald-800 mb-2">{c.progressTitle} (Day {latestProgress.daysSinceBaseline})</h3>
             <p className="text-sm text-emerald-900 leading-relaxed">{latestProgress.narrative}</p>
           </div>
         )}
@@ -171,8 +171,8 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
               onClick={() => setExpandedIg(expandedIg === ig.intentGroupId ? null : ig.intentGroupId)}
             >
               <div>
-                <h3 className="font-black text-[#03234b]">{ig.label}</h3>
-                <p className="text-[10px] text-slate-400 mt-1">
+                <h3 className="font-bold text-[#03234b]">{ig.label}</h3>
+                <p className="text-[11px] text-[#5f6f85] mt-1">
                   ST rate {stRate}% · avg void {avgVoid} · {critical} critical
                 </p>
               </div>
@@ -185,7 +185,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
         );})}
 
         <div className="space-y-3">
-          <h3 className="text-sm font-black uppercase tracking-widest text-[#03234b] flex items-center gap-2">
+          <h3 className="text-sm font-bold text-[#03234b] flex items-center gap-2">
             <Zap className="w-4 h-4 text-[#ffd200]" /> {c.playbooksTitle}
           </h3>
           {playbooks.map(pb => {
@@ -201,7 +201,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                     {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
                   </div>
                   <div className="flex-1">
-                    <span className="text-[10px] font-black uppercase text-[#3cb4e6]">{toDisplayText(pb.tacticsType)}</span>
+                    <span className="u-eyebrow text-[#3cb4e6]">{toDisplayText(pb.tacticsType)}</span>
                     <p className="font-bold text-[#03234b] mt-1">{toDisplayText(pb.sourceLogic)}</p>
                     <p className="text-xs text-slate-500 mt-2">{toDisplayText(pb.geoAction)}</p>
                     <p className="text-[11px] font-mono bg-slate-50 p-3 rounded-lg mt-3 text-slate-600">{toDisplayText(pb.targetSnippet)}</p>
@@ -214,7 +214,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
         {innovationPlays.length > 0 && (
           <div className="bg-[#03234b] rounded-2xl p-6 text-white">
-            <h3 className="text-xs font-black uppercase tracking-widest text-[#ffd200] mb-4">{c.innovationTitle}</h3>
+            <h3 className="text-[13px] font-bold text-[#ffd200] mb-4">{c.innovationTitle}</h3>
             <ul className="space-y-2 text-sm text-white/80">
               {innovationPlays.map((play, i) => (
                 <li key={i} className="flex gap-2"><span className="text-[#3cb4e6]">→</span>{play}</li>

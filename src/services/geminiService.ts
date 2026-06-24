@@ -1,20 +1,76 @@
 /**
  * Gemini client utilities for the Campaign pipeline.
+ * All Gemini calls go through /api/gemini/* (keys never in browser).
  * CN model probes: multiModelService + /api/multi-model-probe
  */
 
-import { GoogleGenAI } from '@google/genai';
 import { GEMINI_MODELS } from '../config/models';
 
-export const getGenAI = () => {
-  const apiKey = (window as any).env?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
-  if (!apiKey) {
-    throw new Error(
-      'API key is missing. Set VITE_GEMINI_API_KEY in .env.local (dev) or as an environment variable on the server (production).',
-    );
+export { GEMINI_MODELS };
+
+interface GenerateContentParams {
+  model: string;
+  contents: unknown;
+  config?: unknown;
+}
+
+async function postGemini(path: string, params: GenerateContentParams) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(JSON.stringify({
+      error: {
+        message: body.error || res.statusText,
+        code: body.code,
+        status: res.status === 429 ? 'RESOURCE_EXHAUSTED' : undefined,
+      },
+    }));
   }
-  return new GoogleGenAI({ apiKey });
-};
+  return body as { text: string };
+}
+
+async function* streamGemini(params: GenerateContentParams) {
+  const res = await fetch('/api/gemini/generate-stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Stream failed (${res.status})`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const payload = line.slice(6).trim();
+      if (payload === '[DONE]') return;
+      const parsed = JSON.parse(payload) as { text?: string; error?: string };
+      if (parsed.error) throw new Error(parsed.error);
+      if (parsed.text) yield { text: parsed.text };
+    }
+  }
+}
+
+/** Server-side Gemini proxy — no API key in the browser. */
+export const getGenAI = () => ({
+  models: {
+    generateContent: (params: GenerateContentParams) =>
+      postGemini('/api/gemini/generate', params).then((r) => ({ text: r.text })),
+    generateContentStream: (params: GenerateContentParams) => streamGemini(params),
+  },
+});
 
 export const parseRetrySeconds = (err: any): number | null => {
   try {
@@ -136,6 +192,54 @@ function buildCampaignReportPrompt(p: CampaignReportParams): string {
   const playbooks = syn?.playbooks.filter(pb =>
     !p.selectedPlaybookIds?.length || p.selectedPlaybookIds.includes(pb.id),
   ) ?? [];
+  const competitorCounts = new Map<string, number>();
+  for (const pr of probes) {
+    for (const name of pr.gemini.dominantCompetitors || []) {
+      competitorCounts.set(name, (competitorCounts.get(name) || 0) + 1);
+    }
+  }
+  const topCompetitors = [...competitorCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+  const competitorDiagnosisSeed = topCompetitors.map(([name, mentions], idx) => {
+    const relatedIntent = (syn?.intentDiagnoses || []).find(ig =>
+      (ig.metrics?.dominantCompetitors || []).includes(name),
+    );
+    return `${idx + 1}. ${name}
+- mentionCountInProbes: ${mentions}
+- relatedIntentGroup: ${relatedIntent?.label || 'N/A'}
+- relatedFailure: ${relatedIntent?.metrics?.primaryFailure || relatedIntent?.failureDiagnosis?.primaryFailure || 'UNKNOWN'}
+- relatedVoidSeverity: ${(relatedIntent?.metrics?.avgVoidSeverity ?? 0).toFixed(1)}`;
+  }).join('\n');
+
+  const geminiExecEvidence = probes.map((pr, idx) => `Q${idx + 1}: ${pr.questionText}
+- simulatedAnswer: ${pr.gemini.simulatedAnswer.slice(0, 380)}
+- marketPulse: ${pr.gemini.marketPulse.slice(0, 240)}
+- ST binding: ${pr.gemini.stBindingStrength} | void: ${pr.gemini.voidSize} (${pr.gemini.voidSeverity}/10)
+- competitors: ${(pr.gemini.dominantCompetitors || []).join(', ') || 'N/A'}
+- failure: ${pr.gemini.primaryFailure}`).join('\n\n');
+
+  const fourModelEvidence = probes.map((pr, idx) => {
+    const mm = pr.multiModel;
+    if (!mm) {
+      return `Q${idx + 1}: ${pr.questionText}\n- 4-model verification: not available`;
+    }
+    const snapshots = mm.snapshots.map(s => `  - ${s.modelName} (${s.modelId}) | sentiment=${s.sentiment} | latency=${s.latencyMs}ms
+    entities: ${(s.keyEntities || []).slice(0, 6).join(', ') || 'N/A'}
+    response: ${(s.rawResponse || '').slice(0, 240) || s.error || 'N/A'}`).join('\n');
+    return `Q${idx + 1}: ${pr.questionText}
+- consensusLevel: ${mm.consensusLevel}
+- consensusSummary: ${mm.consensusSummary}
+${snapshots}`;
+  }).join('\n\n');
+
+  const intentDeepDive = (syn?.intentDiagnoses || []).map((ig, i) => `Intent ${i + 1} — ${ig.label}
+- metrics: ST rate=${Math.round((ig.metrics?.stMentionRate || 0) * 100)}%, avg void=${(ig.metrics?.avgVoidSeverity || 0).toFixed(1)}, critical=${ig.metrics?.criticalVoidCount || 0}
+- dominant competitors: ${(ig.metrics?.dominantCompetitors || []).join(', ') || 'N/A'}
+- primary failure: ${ig.metrics?.primaryFailure || ig.failureDiagnosis?.primaryFailure || 'UNKNOWN'}
+- failure diagnosis: ${ig.failureDiagnosis?.explanation || 'N/A'} (severity=${ig.failureDiagnosis?.severity || 'N/A'}, urgency=${ig.failureDiagnosis?.repairUrgency ?? 'N/A'})
+- narrative: ${(ig.narrative || '').slice(0, 420)}
+- recommended playbooks: ${(ig.recommendedPlaybookIds || []).join(', ') || 'N/A'}`).join('\n\n');
 
   let data = `
 CAMPAIGN TOPIC: ${c.topic}
@@ -158,6 +262,18 @@ ${playbooks.map((pb, i) => `${i + 1}. [${pb.tacticsType}] ${pb.geoAction}\n   Sn
 INNOVATION PLAYS:
 ${(syn?.innovationPlays || []).join('\n')}
 
+GEMINI SIMULATION EXECUTIVE EVIDENCE (PER QUESTION):
+${geminiExecEvidence || 'N/A'}
+
+FOUR LLM VERIFICATION EVIDENCE (DEEPSEEK / QWEN / DOUBAO / KIMI):
+${fourModelEvidence || 'N/A'}
+
+COMPETITOR DIAGNOSIS SEED:
+${competitorDiagnosisSeed || 'N/A'}
+
+INTENT DEEP-DIVE EVIDENCE:
+${intentDeepDive || 'N/A'}
+
 T0 PROBE BASELINE:
 ${probes.map(pr => `- Q: ${pr.questionText}
   ST: ${pr.gemini.stBindingStrength} | void: ${pr.gemini.voidSize} (${pr.gemini.voidSeverity}/10)
@@ -174,10 +290,45 @@ ${JSON.stringify(p.progressSnapshot.intentGroupDeltas, null, 2)}
   }
 
   return `ROLE: Senior GEO Campaign Strategist at STMicroelectronics.
-TASK: Generate a GEO Marketing Campaign Report in TWO formats (%%MD_START%%...%%MD_END%% and %%HTML_BODY_START%%...%%HTML_BODY_END%%).
-OUTPUT LANGUAGE: [${c.uiLang}] only. Campaign plan only — no full blog articles.
+TASK: Generate a GEO Marketing Campaign Report in TWO formats:
+1) %%MD_START%%...%%MD_END%%
+2) %%HTML_BODY_START%%...%%HTML_BODY_END%%
+OUTPUT LANGUAGE: [${c.uiLang}] only.
 
-SECTIONS: Executive Overview, Brief Summary, GEO Cognitive Baseline table, Intent Analysis, Channel & Timeline, Phase KPIs (GEO only), Playbook Cards, Innovation Lab${p.progressSnapshot ? ', Progress Evidence' : ''}.
+CRITICAL QUALITY RULES:
+- This report must feel like a strategic war-archive, not plain text notes.
+- Use timeline/archive presentation structure, with strong visual hierarchy.
+- Do NOT collapse intent analysis into one sentence.
+- Must explicitly include Gemini simulation executive evidence and four-LLM comparison evidence.
+- Must explicitly include competitor diagnosis (threat matrix + why competitor wins + interception plan).
+- Every major claim must map to concrete probe evidence.
+
+MANDATORY HTML BODY STRUCTURE (use these section labels exactly):
+1) <div class="sec-label">Archive Snapshot</div>
+   - 4-card summary (risk/opportunity/ST visibility/priority)
+2) <div class="sec-label">Timeline: T0 → T30 → T60 → T90</div>
+   - Present as a true timeline table with milestones, actions, expected GEO signal lift
+3) <div class="sec-label">Gemini Simulation Executive Evidence</div>
+   - Per-question evidence bullets (what Gemini answered, why it matters)
+4) <div class="sec-label">Four-LLM Cross-Model Evidence</div>
+   - Explicitly compare DeepSeek/Qwen/Doubao/Kimi by question
+   - Include consensus/divergence and implications
+5) <div class="sec-label">Competitor Diagnosis Matrix</div>
+   - At least top 5 competitors
+   - For each competitor: threat level, why AI prefers them (corpus advantage), weak spot, interception action
+   - Must be evidence-based from probes and model outputs, not generic statements
+6) <div class="sec-label">Intent Deep-Dive (Not One-Line)</div>
+   - For each intent group: metrics + failure diagnosis + root cause + repair logic + linked playbooks
+7) <div class="sec-label">GEO Cognitive Baseline Table</div>
+8) <div class="sec-label">Playbook Deployment Board</div>
+9) <div class="sec-label">Innovation Lab</div>
+10) <div class="sec-label">Execution Checklist</div>
+
+MANDATORY DEPTH RULES:
+- Intent section: minimum 5-8 sentences per intent group.
+- Four-LLM section: minimum 1 comparison block per question with model-specific observations.
+- Timeline section: include phase goals, channel actions, KPI targets, and probe checkpoints.
+- Avoid fluff adjectives; prioritize evidence + causality + actionability.
 
 DATA:
 ${data}`;

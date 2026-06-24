@@ -40,7 +40,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans" data-lang={uiLang}>
       <header className="bg-[#03234b] text-white shadow-xl z-20 sticky top-0">
         <div className="max-w-[98%] mx-auto px-4 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 flex-shrink-0">
@@ -48,8 +48,8 @@ const App: React.FC = () => {
               <Cpu className="w-5 h-5 text-[#03234b]" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-base font-black tracking-tight leading-tight uppercase">{t.appTitle}</h1>
-              <p className="text-[9px] text-[#8191a5] font-bold uppercase tracking-[0.15em]">{t.appSubtitle}</p>
+              <h1 className="text-base font-black tracking-tight leading-tight u-page-title">{t.appTitle}</h1>
+              <p className="u-caption">{t.appSubtitle}</p>
             </div>
           </div>
 
@@ -60,10 +60,10 @@ const App: React.FC = () => {
                 <button
                   key={l.id}
                   onClick={() => setUiLang(l.id)}
-                  className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                  className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
                     uiLang === l.id
                       ? 'bg-white text-[#03234b] shadow-sm'
-                      : 'text-white/50 hover:text-white'
+                      : 'text-white/70 hover:text-white'
                   }`}
                 >
                   {l.label}
@@ -72,14 +72,14 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex items-center bg-[#425a78] rounded p-0.5 border border-[#8191a5]/30">
-              <div className="px-2 text-[10px] font-black text-[#c0c8d2] uppercase flex items-center gap-1 border-r border-[#8191a5]/30 mr-0.5 pr-2">
+              <div className="px-2 u-eyebrow text-[#c0c8d2] flex items-center gap-1 border-r border-[#8191a5]/30 mr-0.5 pr-2">
                 <Globe className="w-3 h-3" /> {t.ecosystemLabel}
               </div>
               {ecosystems.map((eco) => (
                 <button
                   key={eco.id}
                   onClick={() => setTargetEcosystem(eco.id as Ecosystem)}
-                  className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                  className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
                     targetEcosystem === eco.id
                       ? 'bg-[#ffd200] text-[#03234b] shadow-md scale-105'
                       : 'text-white/60 hover:text-white hover:bg-white/10'
@@ -121,7 +121,7 @@ const App: React.FC = () => {
                   >
                     <stepItem.icon className="w-5 h-5" />
                   </button>
-                  <span className={`text-[10px] font-black uppercase tracking-wider ${
+                  <span className={`text-[11px] font-bold ${
                     isActive ? 'text-[#03234b]' : isPast ? 'text-[#3cb4e6]' : 'text-slate-300'
                   }`}>
                     {stepItem.label}
@@ -139,7 +139,7 @@ const App: React.FC = () => {
       </main>
 
       <footer className="border-t border-slate-200 py-6 text-center bg-white">
-        <p className="text-[10px] text-[#8191a5] font-bold uppercase tracking-[0.15em]">{t.footer}</p>
+        <p className="u-caption text-center">{t.footer}</p>
       </footer>
 
       <ChatAssistant />

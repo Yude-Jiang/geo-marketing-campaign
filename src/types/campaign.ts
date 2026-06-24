@@ -4,10 +4,9 @@
  * Data flows in four layers:
  *   SeedQuestion → QuestionProbe → IntentGroupDiagnosis → CampaignSynthesis
  *
- * LLM architecture (unchanged):
- *   • Gemini (browser via /config.js → VITE_GEMINI_API_KEY):
- *       preprocessing, simulated per-question probes, Google Search grounding,
- *       intent/campaign synthesis, brief draft, report generation.
+ * LLM architecture:
+ *   • Gemini (server via POST /api/gemini/* — key never in browser):
+ *       preprocessing, simulated per-question probes, intent/campaign synthesis, report generation.
  *   • Four CN models (server via POST /api/multi-model-probe — keys never in browser):
  *       DeepSeek, Qwen, Doubao, Kimi — real responses for cross-model verification.
  *       Used on CN-ecosystem campaigns and optionally to validate Gemini simulation.

@@ -3,15 +3,8 @@ import { useWorkflowStore } from '../store/workflowStore';
 import { runCampaignPipeline } from '../services/campaignPipeline';
 import type { CampaignPipelineProgress } from '../types/campaign';
 import type { TranslationKeys } from '../i18n/translations';
+import PipelineStageIndicator from './PipelineStageIndicator';
 import { Loader2, Search, ChevronRight, AlertCircle, Target, Layers } from 'lucide-react';
-
-const STAGE_LABELS: Record<string, string> = {
-  preprocess: 'Classifying questions…',
-  probe_questions: 'Running cognitive probes…',
-  multi_model_verify: 'CN model verification…',
-  synthesize_campaign: 'Synthesizing campaign plan…',
-  done: 'Complete',
-};
 
 const toDisplayText = (value: unknown): string => {
   if (typeof value === 'string') return value;
@@ -26,6 +19,31 @@ const toDisplayText = (value: unknown): string => {
   }
   return '';
 };
+
+const DiscoverySkeleton: React.FC = () => (
+  <div className="space-y-4 animate-fade-in">
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100 space-y-4">
+      <div className="skeleton-block h-4 w-32" />
+      <div className="skeleton-block h-16 w-full" />
+    </div>
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100 space-y-3">
+      <div className="skeleton-block h-4 w-40" />
+      <div className="flex flex-wrap gap-2">
+        <div className="skeleton-block h-8 w-28 rounded-full" />
+        <div className="skeleton-block h-8 w-36 rounded-full" />
+        <div className="skeleton-block h-8 w-24 rounded-full" />
+      </div>
+    </div>
+    <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+      <div className="skeleton-block h-10 w-full rounded-none" />
+      <div className="p-4 space-y-3">
+        <div className="skeleton-block h-10 w-full" />
+        <div className="skeleton-block h-10 w-full" />
+        <div className="skeleton-block h-10 w-full" />
+      </div>
+    </div>
+  </div>
+);
 
 const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const uiLang = useWorkflowStore(s => s.uiLang);
@@ -116,18 +134,19 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
   const probes = campaign?.probes.filter(p => p.phase === 'baseline') || [];
   const groups = campaign?.preprocess?.intentGroups || [];
+  const showSkeleton = loading && !campaign?.synthesis;
 
   return (
     <div className="space-y-6 animate-fade-in pb-24 max-w-5xl mx-auto">
       <div className="bg-white rounded-2xl p-8 shadow-xl border border-slate-100">
-        <h2 className="text-2xl font-black text-[#03234b] uppercase tracking-tight flex items-center gap-3">
+        <h2 className="text-2xl u-page-title text-[#03234b] flex items-center gap-3">
           <Target className="w-6 h-6 text-[#3cb4e6]" /> {c.discoveryTitle}
         </h2>
-        <p className="text-slate-500 text-sm mt-2">{c.discoverySubtitle}</p>
+        <p className="text-[#5f6f85] text-[13px] mt-2 leading-relaxed">{c.discoverySubtitle}</p>
 
         <div className="mt-8 space-y-5">
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-[#8191a5]">{c.topicLabel}</label>
+            <label className="u-eyebrow">{c.topicLabel}</label>
             <input
               value={topic}
               onChange={e => setTopic(e.target.value)}
@@ -137,30 +156,30 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
           </div>
 
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-[#8191a5]">{c.questionsLabel}</label>
+            <label className="u-eyebrow">{c.questionsLabel}</label>
             <textarea
               value={questions}
               onChange={e => setQuestions(e.target.value)}
               placeholder={c.questionsPlaceholder}
               rows={6}
-              className="mt-2 w-full border border-slate-200 rounded-xl px-4 py-3 text-xs font-mono text-[#03234b] focus:border-[#3cb4e6] outline-none resize-y"
+              className="mt-2 w-full border border-slate-200 rounded-xl px-4 py-3 text-[13px] text-[#03234b] focus:border-[#3cb4e6] outline-none resize-y leading-relaxed"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#8191a5]">{c.urlsLabel}</label>
+              <label className="u-eyebrow">{c.urlsLabel}</label>
               <textarea
                 value={urls}
                 onChange={e => setUrls(e.target.value)}
                 placeholder={c.urlsPlaceholder}
                 rows={3}
-                className="mt-2 w-full border border-slate-200 rounded-xl px-4 py-3 text-xs focus:border-[#3cb4e6] outline-none"
+                className="mt-2 w-full border border-slate-200 rounded-xl px-4 py-3 text-[13px] focus:border-[#3cb4e6] outline-none leading-relaxed"
               />
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-[#8191a5]">{c.regionLabel}</label>
+                <label className="u-eyebrow">{c.regionLabel}</label>
                 <input
                   value={regionInput}
                   onChange={e => setRegionInput(e.target.value)}
@@ -169,7 +188,7 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-[#8191a5]">{c.durationLabel}</label>
+                <label className="u-eyebrow">{c.durationLabel}</label>
                 <select
                   value={duration}
                   onChange={e => setDuration(e.target.value as typeof duration)}
@@ -184,23 +203,19 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
           </div>
 
           {error && (
-            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-[13px] text-red-700">
               <AlertCircle className="w-5 h-5 flex-shrink-0" /> {error}
             </div>
           )}
 
           {loading && (
-            <div className="flex items-center gap-3 text-[#3cb4e6] text-sm font-bold">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              {progress?.detail || STAGE_LABELS[progress?.stage || 'preprocess']}
-              {progress?.totalQuestions ? ` (${progress.completedQuestions ?? 0}/${progress.totalQuestions})` : ''}
-            </div>
+            <PipelineStageIndicator progress={progress} labels={c.pipelineStages} />
           )}
 
           <button
             onClick={handleRun}
             disabled={loading || !topic.trim()}
-            className="w-full bg-[#03234b] text-white font-black uppercase tracking-widest py-4 rounded-xl hover:bg-[#0a3d7a] disabled:opacity-40 flex items-center justify-center gap-2"
+            className="btn-primary w-full py-4 text-sm"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
             {loading ? c.runningBtn : c.runBtn}
@@ -208,21 +223,23 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
         </div>
       </div>
 
-      {campaign?.synthesis && (
+      {showSkeleton && <DiscoverySkeleton />}
+
+      {campaign?.synthesis && !showSkeleton && (
         <>
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100">
-            <h3 className="text-sm font-black uppercase tracking-widest text-[#03234b] mb-3">{c.execSummary}</h3>
-            <p className="text-sm text-slate-600 leading-relaxed">{toDisplayText(campaign.synthesis.executiveSummary)}</p>
+            <h3 className="text-sm font-bold text-[#03234b] mb-3">{c.execSummary}</h3>
+            <p className="text-[13px] text-[#5f6f85] leading-relaxed">{toDisplayText(campaign.synthesis.executiveSummary)}</p>
           </div>
 
           {groups.length > 0 && (
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[#03234b] mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-[#03234b] mb-4 flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#ffd200]" /> {c.intentGroupsTitle}
               </h3>
               <div className="flex flex-wrap gap-2">
                 {groups.map(g => (
-                  <span key={g.id} className="px-3 py-1.5 bg-[#3cb4e6]/10 text-[#03234b] text-xs font-bold rounded-full border border-[#3cb4e6]/20">
+                  <span key={g.id} className="px-3 py-1.5 bg-[#3cb4e6]/10 text-[#03234b] text-[13px] font-bold rounded-full border border-[#3cb4e6]/20">
                     {g.label} ({g.questionIds.length})
                   </span>
                 ))}
@@ -232,17 +249,17 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
           <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
             <div className="bg-[#03234b] px-6 py-3">
-              <h3 className="text-white text-xs font-black uppercase tracking-widest">{c.baselineTitle}</h3>
+              <h3 className="text-white text-[13px] font-bold">{c.baselineTitle}</h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full text-[13px]">
                 <thead>
-                  <tr className="bg-slate-50 text-left text-[10px] font-black uppercase text-slate-500">
-                    <th className="p-3">Question</th>
-                    <th className="p-3">Tier</th>
-                    <th className="p-3">ST</th>
-                    <th className="p-3">Void</th>
-                    <th className="p-3">Competitors</th>
+                  <tr className="bg-slate-50 text-left text-[11px] font-bold text-slate-500">
+                    <th className="p-3">{c.tableQuestion}</th>
+                    <th className="p-3" title={c.tableTooltipTier}>{c.tableTier}</th>
+                    <th className="p-3" title={c.tableTooltipSt}>{c.tableSt}</th>
+                    <th className="p-3" title={c.tableTooltipVoid}>{c.tableVoid}</th>
+                    <th className="p-3">{c.tableCompetitors}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -250,11 +267,11 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                     const tier = campaign.preprocess?.questions.find(q => q.id === p.questionId)?.tier;
                     return (
                       <tr key={p.id} className="border-t border-slate-100">
-                        <td className="p-3 font-medium text-[#03234b] max-w-xs">{p.questionText}</td>
-                        <td className="p-3 text-slate-500">{tier}</td>
+                        <td className="p-3 font-medium text-[#03234b] max-w-xs leading-relaxed">{p.questionText}</td>
+                        <td className="p-3 text-[#5f6f85]">{tier}</td>
                         <td className="p-3">{p.gemini.stBindingStrength}</td>
                         <td className="p-3">{p.gemini.voidSize} ({p.gemini.voidSeverity})</td>
-                        <td className="p-3 text-slate-500">{p.gemini.dominantCompetitors.slice(0, 3).join(', ')}</td>
+                        <td className="p-3 text-[#5f6f85]">{p.gemini.dominantCompetitors.slice(0, 3).join(', ')}</td>
                       </tr>
                     );
                   })}
@@ -263,10 +280,10 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
             </div>
           </div>
 
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 pr-20 sm:pr-0">
             <button
               onClick={handleConfirm}
-              className="bg-[#ffd200] text-[#03234b] font-black uppercase px-12 py-4 rounded-2xl shadow-xl flex items-center gap-2 hover:bg-[#ffe24d]"
+              className="btn-accent px-12 py-4 rounded-2xl shadow-xl text-sm"
             >
               {c.confirmBtn} <ChevronRight className="w-5 h-5" />
             </button>

@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { GoogleAuth } from 'google-auth-library';
+import { GoogleGenAI } from '@google/genai';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,18 +86,74 @@ async function startServer() {
     crossOriginEmbedderPolicy: false,
   }));
 
-  // Dynamic endpoint for runtime environment variables.
-  // All VITE_ keys are populated here (from Secret Manager or env var binding)
-  // so the frontend picks them up via window.env without a rebuild.
-  app.get('/config.js', (req, res) => {
-    // Only the Gemini key is exposed to the browser. The CN model keys
-    // (DeepSeek/Qwen/Doubao/Kimi) stay server-side and are used exclusively by
-    // the /api/multi-model-probe proxy below, so they never reach DevTools.
-    const envVars = {
-      VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || '',
-    };
+  // Legacy hook kept for SPA compatibility; no secrets are injected anymore.
+  app.get('/config.js', (_req, res) => {
     res.set('Content-Type', 'application/javascript');
-    res.send(`window.env = ${JSON.stringify(envVars)};`);
+    res.send('window.env = {};');
+  });
+
+  app.use(express.json({ limit: '2mb' }));
+
+  function getServerGenAI() {
+    const apiKey = process.env.VITE_GEMINI_API_KEY || '';
+    if (!apiKey || apiKey.includes('your_')) {
+      throw new Error('Gemini API key not configured on server');
+    }
+    return new GoogleGenAI({ apiKey });
+  }
+
+  // Gemini proxy — all LLM keys stay server-side; browser never sees them.
+  app.post('/api/gemini/generate', async (req, res) => {
+    const { model, contents, config } = req.body || {};
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120_000);
+    try {
+      const result = await getServerGenAI().models.generateContent({
+        model,
+        contents,
+        config,
+      });
+      clearTimeout(timer);
+      res.json({ text: result.text || '' });
+    } catch (err) {
+      clearTimeout(timer);
+      const message = err?.message || 'Gemini request failed';
+      const is429 = /429|RESOURCE_EXHAUSTED|quota/i.test(message);
+      res.status(is429 ? 429 : 502).json({
+        error: message,
+        code: is429 ? 'RESOURCE_EXHAUSTED' : undefined,
+      });
+    }
+  });
+
+  app.post('/api/gemini/generate-stream', async (req, res) => {
+    const { model, contents, config } = req.body || {};
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 180_000);
+    try {
+      const stream = await getServerGenAI().models.generateContentStream({
+        model,
+        contents,
+        config,
+      });
+      for await (const chunk of stream) {
+        if (chunk.text) {
+          res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+        }
+      }
+      clearTimeout(timer);
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (err) {
+      clearTimeout(timer);
+      const message = err?.message || 'Gemini stream failed';
+      res.write(`data: ${JSON.stringify({ error: message })}\n\n`);
+      res.end();
+    }
   });
 
   // Proxy route: fetch a URL via Jina Reader on the server side, avoiding
@@ -147,7 +204,6 @@ async function startServer() {
   // Multi-model probe proxy — keeps CN model API keys server-side only.
   // The browser POSTs { modelId, prompt }; the server attaches the secret key
   // and forwards to the model's OpenAI-compatible endpoint.
-  app.use(express.json());
   app.post('/api/multi-model-probe', async (req, res) => {
     const { modelId, prompt } = req.body || {};
     if (!modelId || !prompt) {

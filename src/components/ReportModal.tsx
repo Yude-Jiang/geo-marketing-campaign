@@ -1172,11 +1172,11 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, content, isGenerating, 
             <div className="bg-[#ffd200] p-2 rounded-xl">
               <FileText className="w-4 h-4 text-[#03234b]" />
             </div>
-            <h3 className="text-sm font-black uppercase tracking-widest text-[#03234b]">
+            <h3 className="text-sm font-bold text-[#03234b]">
               {p.reportTitle}
             </h3>
             {isGenerating && (
-              <span className="flex items-center gap-1.5 text-[10px] font-black text-[#3cb4e6] uppercase tracking-widest ml-2">
+              <span className="flex items-center gap-1.5 u-eyebrow text-[#3cb4e6] ml-2">
                 <Loader2 className="w-3 h-3 animate-spin" /> {p.reportGenerating}
               </span>
             )}
@@ -1196,7 +1196,7 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, content, isGenerating, 
           {!content && isGenerating && (
             <div className="flex flex-col items-center justify-center h-40 text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin mb-3" />
-              <p className="text-[10px] font-black uppercase tracking-widest">{p.reportGenerating}</p>
+              <p className="u-eyebrow">{p.reportGenerating}</p>
             </div>
           )}
           {content && !hasHtml && (
@@ -1218,14 +1218,14 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, content, isGenerating, 
         <div className="flex items-center justify-between px-8 py-4 border-t border-slate-100 flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            <span className="u-caption text-slate-400">
               {t.footer}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-[#03234b] border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+              className="btn-ghost px-4 py-2 text-[11px]"
             >
               {p.reportCloseBtn}
             </button>
@@ -1235,7 +1235,7 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, content, isGenerating, 
               onClick={handleDownloadMd}
               disabled={!content || isGenerating}
               title="Markdown — 适合 Notion / Obsidian 二次编辑"
-              className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-200 disabled:opacity-30 transition-all"
+              className="btn-ghost px-4 py-2 text-[11px] bg-slate-100 hover:bg-slate-200"
             >
               <Download className="w-3.5 h-3.5" /> .md
             </button>
@@ -1245,7 +1245,7 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, content, isGenerating, 
               onClick={handleDownloadHtml}
               disabled={!content || isGenerating}
               title="HTML — 浏览器直接打开，样式与 User Guide 一致"
-              className="flex items-center gap-2 px-5 py-2 bg-[#03234b] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#0a3d7a] disabled:opacity-30 transition-all"
+              className="btn-primary px-5 py-2 text-[11px] disabled:opacity-30"
             >
               <Code2 className="w-3.5 h-3.5" /> {p.reportDownloadHtmlBtn ?? 'Download .html'}
             </button>

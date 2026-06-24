@@ -6,9 +6,9 @@ AI-driven GEO marketing campaign planner: minimal input → cognitive probes →
 
 ```bash
 npm install
-cp .env.example .env.local   # add VITE_GEMINI_API_KEY
-npm run dev                  # Vite only — use two terminals or:
-# Terminal 1: npm run build && npm start
+cp .env.example .env.local   # VITE_GEMINI_API_KEY + CN keys (server reads at runtime)
+npm run dev                  # Vite :5173 — run server in another terminal:
+npm run build && npm start   # Express :8080 (proxies /api from Vite)
 ```
 
 For full stack (API proxy + secrets), run `npm run build && npm start` on port 8080.
@@ -52,6 +52,10 @@ gcloud builds submit --config cloudbuild.yaml
 ## Architecture
 
 - **Frontend**: React + Vite → static `dist/`
-- **Server**: Express (`server.js`) — `/config.js`, `/api/fetch-url`, `/api/multi-model-probe`
-- **Gemini**: preprocess, probes, synthesis, reports
-- **CN LLMs**: DeepSeek / Qwen / Doubao / Kimi via server proxy (keys never in browser)
+- **Server**: Express (`server.js`) — `/api/gemini/*`, `/api/fetch-url`, `/api/multi-model-probe`
+- **Gemini + CN LLMs**: all keys server-side only; browser calls same-origin API proxies
+
+## Security model
+
+- **No user authentication** — app stays publicly reachable (`--allow-unauthenticated`).
+- **All LLM keys stay on the server** (Secret Manager / env). `/config.js` does not inject secrets; the browser calls `/api/gemini/*` and `/api/multi-model-probe` instead.
