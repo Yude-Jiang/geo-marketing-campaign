@@ -1,0 +1,13 @@
+node_modules
+dist
+.env
+.env.local
+.git
+.gitignore
+Dockerfile
+README.md
+screenshot.png
+check.mjs
+test-search.ts
+test-search2.ts
+testApi.mjs

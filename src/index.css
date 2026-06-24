@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8fafc;
+}
+
+/* Premium Typography Overrides for GEO Strategic Hub */
+.prose {
+  max-width: none !important;
+  line-height: 1.85 !important;
+  color: #334155 !important;
+  font-size: 1rem !important; /* Unified smaller size for professional density */
+}
+
+.prose h1 {
+  font-size: 3rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.04em !important;
+  margin-top: 4rem !important;
+  margin-bottom: 2rem !important;
+  line-height: 1.1 !important;
+  color: #03234b !important;
+  text-transform: uppercase;
+}
+
+.prose h2 {
+  font-size: 2rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  margin-top: 4.5rem !important;
+  margin-bottom: 1.5rem !important;
+  padding-bottom: 0.75rem !important;
+  border-bottom: 3px solid #f1f5f9 !important; /* Lighter but thicker strategic line */
+  color: #03234b !important;
+}
+
+.prose h3 {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  margin-top: 3.25rem !important;
+  margin-bottom: 1.25rem !important;
+  color: #03234b !important;
+}
+
+.prose p {
+  margin-bottom: 2rem !important;
+  font-size: 1rem !important;
+}
+
+.prose ul, .prose ol {
+  margin-top: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+  padding-left: 1.5rem !important; /* Reinforced Indentation */
+}
+
+.prose li {
+  margin-bottom: 0.75rem !important;
+  padding-left: 0.5rem !important;
+}
+
+
+code {
+  font-family: 'JetBrains Mono', source-code-pro, Menlo, Monaco, Consolas, monospace;
+}
+
+
+/* ── ModelMarkdown: LLM response rendering, 12px hard cap ── */
+.model-markdown {
+  color: #475569;
+  line-height: 1.6;
+  font-size: 12px;
+}
+.model-markdown p {
+  font-size: 12px !important;
+  line-height: 1.6;
+  color: #475569;
+  margin: 0 0 4px 0;
+}
+.model-markdown li {
+  font-size: 12px !important;
+  line-height: 1.6;
+  color: #475569;
+  margin: 1px 0;
+}
+.model-markdown em {
+  font-size: 12px !important;
+  color: #64748b;
+}
+.model-markdown strong {
+  font-size: 12px !important;
+  font-weight: 700;
+  color: #03234b;
+}
+.model-markdown h1,
+.model-markdown h2,
+.model-markdown h3,
+.model-markdown h4 {
+  font-size: 12px !important;
+  font-weight: 700;
+  color: #03234b;
+  margin: 6px 0 2px 0;
+}
+.model-markdown ul,
+.model-markdown ol {
+  padding-left: 16px;
+  margin: 4px 0;
+}
+.model-markdown code {
+  font-size: 11px !important;
+  background: #f1f5f9;
+  color: #03234b;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+}
+.model-markdown pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 11px !important;
+  padding: 10px 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+.model-markdown pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 11px !important;
+}
+.model-markdown a {
+  font-size: 12px !important;
+  color: #3cb4e6;
+  text-decoration: underline;
+}
+.model-markdown blockquote {
+  font-size: 12px !important;
+  border-left: 2px solid rgba(60, 180, 230, 0.4);
+  padding-left: 10px;
+  color: #64748b;
+  margin: 4px 0;
+}
+.model-markdown table {
+  font-size: 12px !important;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 6px 0;
+}
+.model-markdown th,
+.model-markdown td {
+  font-size: 12px !important;
+  border: 1px solid #e2e8f0;
+  padding: 4px 8px;
+  text-align: left;
+}
+.model-markdown th {
+  background: #f8fafc;
+  font-weight: 700;
+  color: #03234b;
+}
+
+/* ── ModelMarkdown: LLM response rendering, 12px hard cap ── */
+.model-markdown { color: #475569; line-height: 1.6; font-size: 12px; }
+.model-markdown p { font-size: 12px !important; line-height: 1.6; color: #475569; margin: 0 0 4px 0; }
+.model-markdown li { font-size: 12px !important; line-height: 1.6; color: #475569; margin: 1px 0; }
+.model-markdown em { font-size: 12px !important; color: #64748b; }
+.model-markdown strong { font-size: 12px !important; font-weight: 700; color: #03234b; }
+.model-markdown h1, .model-markdown h2, .model-markdown h3, .model-markdown h4 { font-size: 12px !important; font-weight: 700; color: #03234b; margin: 6px 0 2px 0; }
+.model-markdown ul, .model-markdown ol { padding-left: 16px; margin: 4px 0; }
+.model-markdown code { font-size: 11px !important; background: #f1f5f9; color: #03234b; padding: 1px 4px; border-radius: 3px; font-family: ui-monospace, monospace; }
+.model-markdown pre { background: #0f172a; color: #e2e8f0; font-size: 11px !important; padding: 10px 12px; border-radius: 6px; overflow-x: auto; margin: 6px 0; }
+.model-markdown pre code { background: transparent; color: inherit; padding: 0; font-size: 11px !important; }
+.model-markdown a { font-size: 12px !important; color: #3cb4e6; text-decoration: underline; }
+.model-markdown blockquote { font-size: 12px !important; border-left: 2px solid rgba(60,180,230,0.4); padding-left: 10px; color: #64748b; margin: 4px 0; }
+.model-markdown table { font-size: 12px !important; border-collapse: collapse; width: 100%; margin: 6px 0; }
+.model-markdown th, .model-markdown td { font-size: 12px !important; border: 1px solid #e2e8f0; padding: 4px 8px; text-align: left; }
+.model-markdown th { background: #f8fafc; font-weight: 700; color: #03234b; }
