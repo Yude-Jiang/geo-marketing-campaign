@@ -111,7 +111,7 @@ async function startServer() {
       const result = await getServerGenAI().models.generateContent({
         model,
         contents,
-        config,
+        config: { ...config, abortSignal: controller.signal },
       });
       clearTimeout(timer);
       res.json({ text: result.text || '' });
@@ -138,7 +138,7 @@ async function startServer() {
       const stream = await getServerGenAI().models.generateContentStream({
         model,
         contents,
-        config,
+        config: { ...config, abortSignal: controller.signal },
       });
       for await (const chunk of stream) {
         if (chunk.text) {

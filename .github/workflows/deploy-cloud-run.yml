@@ -25,7 +25,40 @@ env:
   SERVICE: ${{ vars.CLOUD_RUN_SERVICE || 'geo-campaign-hub' }}
 
 jobs:
+  # Build gate — lint + production build must pass before we touch Cloud Run.
+  # Catches breakages (e.g. a missing export) before they reach deploy.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Non-blocking: surfaces lint issues without gating deploy while the
+      # existing codebase still has pre-existing lint errors to clean up.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      # Blocking gate: a failed production build must stop the deploy.
+      - name: Build
+        run: npm run build
+
   deploy:
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
