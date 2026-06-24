@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useWorkflowStore } from '../store/workflowStore';
 import { rerunCampaignProbes } from '../services/campaignPipeline';
 import { buildProgressSnapshot } from '../services/probeDelta';
@@ -7,7 +7,9 @@ import {
   generateProgressNarrative,
 } from '../services/geminiService';
 import type { TranslationKeys } from '../i18n/translations';
-import ReportModal from './ReportModal';
+// Lazy-loaded: pulls in react-markdown + remark-gfm, only needed when the
+// report modal is actually opened. Keeps them out of the initial bundle.
+const ReportModal = lazy(() => import('./ReportModal'));
 import {
   ArrowLeft, Loader2, FileText, RefreshCw, CheckCircle2, Zap, ChevronDown, ChevronUp,
 } from 'lucide-react';
@@ -224,13 +226,17 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
         )}
       </div>
 
-      <ReportModal
-        isOpen={showReport}
-        onClose={() => setShowReport(false)}
-        content={reportContent}
-        isGenerating={isGeneratingReport}
-        t={t}
-      />
+      {showReport && (
+        <Suspense fallback={null}>
+          <ReportModal
+            isOpen={showReport}
+            onClose={() => setShowReport(false)}
+            content={reportContent}
+            isGenerating={isGeneratingReport}
+            t={t}
+          />
+        </Suspense>
+      )}
     </>
   );
 };
