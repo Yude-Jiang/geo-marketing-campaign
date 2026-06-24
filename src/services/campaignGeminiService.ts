@@ -86,6 +86,22 @@ function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function toText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (!value) return '';
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.playName === 'string' && typeof obj.description === 'string') {
+      return `${obj.playName}: ${obj.description}`;
+    }
+    if (typeof obj.description === 'string') return obj.description;
+    if (typeof obj.summary === 'string') return obj.summary;
+    if (typeof obj.text === 'string') return obj.text;
+  }
+  return JSON.stringify(value);
+}
+
 // ─── ① Preprocess seed questions ─────────────────────────────────────────────
 
 export async function preprocessSeedQuestions(
@@ -260,7 +276,7 @@ Return valid JSON matching the structure.`;
       id: pb.id || newId('pb'),
       anchorIds: pb.anchorIds || pb.targetQuestionIds || [],
     })),
-    executiveSummary: parsed.executiveSummary || '',
-    innovationPlays: parsed.innovationPlays || [],
+    executiveSummary: toText(parsed.executiveSummary),
+    innovationPlays: (parsed.innovationPlays || []).map(item => toText(item)).filter(Boolean),
   };
 }

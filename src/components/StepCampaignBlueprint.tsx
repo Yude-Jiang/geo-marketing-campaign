@@ -12,6 +12,23 @@ import {
   ArrowLeft, Loader2, FileText, RefreshCw, CheckCircle2, Zap, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
+const toDisplayText = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (!value) return '';
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.playName === 'string' && typeof obj.description === 'string') {
+      return `${obj.playName}: ${obj.description}`;
+    }
+    if (typeof obj.description === 'string') return obj.description;
+    if (typeof obj.text === 'string') return obj.text;
+    if (typeof obj.summary === 'string') return obj.summary;
+    return JSON.stringify(value);
+  }
+  return '';
+};
+
 const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const campaign = useWorkflowStore(s => s.campaign);
   const setCampaign = useWorkflowStore(s => s.setCampaign);
@@ -22,6 +39,9 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const c = t.campaign;
   const syn = campaign?.synthesis;
   const playbooks = syn?.playbooks || [];
+  const innovationPlays = (syn?.innovationPlays || [])
+    .map(play => toDisplayText(play))
+    .filter(Boolean);
 
   const [showReport, setShowReport] = useState(false);
   const [reportContent, setReportContent] = useState('');
@@ -159,7 +179,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
               {expandedIg === ig.intentGroupId ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </button>
             {expandedIg === ig.intentGroupId && (
-              <div className="px-6 pb-4 text-sm text-slate-600 border-t border-slate-100 pt-4">{ig.narrative}</div>
+              <div className="px-6 pb-4 text-sm text-slate-600 border-t border-slate-100 pt-4">{toDisplayText(ig.narrative)}</div>
             )}
           </div>
         );})}
@@ -181,10 +201,10 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                     {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
                   </div>
                   <div className="flex-1">
-                    <span className="text-[10px] font-black uppercase text-[#3cb4e6]">{pb.tacticsType}</span>
-                    <p className="font-bold text-[#03234b] mt-1">{pb.sourceLogic}</p>
-                    <p className="text-xs text-slate-500 mt-2">{pb.geoAction}</p>
-                    <p className="text-[11px] font-mono bg-slate-50 p-3 rounded-lg mt-3 text-slate-600">{pb.targetSnippet}</p>
+                    <span className="text-[10px] font-black uppercase text-[#3cb4e6]">{toDisplayText(pb.tacticsType)}</span>
+                    <p className="font-bold text-[#03234b] mt-1">{toDisplayText(pb.sourceLogic)}</p>
+                    <p className="text-xs text-slate-500 mt-2">{toDisplayText(pb.geoAction)}</p>
+                    <p className="text-[11px] font-mono bg-slate-50 p-3 rounded-lg mt-3 text-slate-600">{toDisplayText(pb.targetSnippet)}</p>
                   </div>
                 </div>
               </div>
@@ -192,11 +212,11 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
           })}
         </div>
 
-        {syn.innovationPlays.length > 0 && (
+        {innovationPlays.length > 0 && (
           <div className="bg-[#03234b] rounded-2xl p-6 text-white">
             <h3 className="text-xs font-black uppercase tracking-widest text-[#ffd200] mb-4">{c.innovationTitle}</h3>
             <ul className="space-y-2 text-sm text-white/80">
-              {syn.innovationPlays.map((play, i) => (
+              {innovationPlays.map((play, i) => (
                 <li key={i} className="flex gap-2"><span className="text-[#3cb4e6]">→</span>{play}</li>
               ))}
             </ul>

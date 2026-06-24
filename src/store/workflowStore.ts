@@ -6,7 +6,7 @@ import { enrichIntentDiagnoses } from '../services/intentMetrics';
 
 export type Ecosystem = 'global' | 'cn' | 'jp' | 'kr';
 
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 
 function clampStep(step: unknown): 1 | 2 {
   return step === 2 ? 2 : 1;
@@ -16,23 +16,46 @@ function safeProbes(campaign: Campaign): Campaign['probes'] {
   return Array.isArray(campaign.probes) ? campaign.probes : [];
 }
 
+function toText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (!value) return '';
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.playName === 'string' && typeof obj.description === 'string') {
+      return `${obj.playName}: ${obj.description}`;
+    }
+    if (typeof obj.description === 'string') return obj.description;
+    if (typeof obj.summary === 'string') return obj.summary;
+    if (typeof obj.text === 'string') return obj.text;
+  }
+  return JSON.stringify(value);
+}
+
 function normalizeCampaign(campaign: Campaign | null): Campaign | null {
   if (!campaign) return null;
+  const normalizedSynthesis = campaign.synthesis
+    ? {
+      ...campaign.synthesis,
+      executiveSummary: toText(campaign.synthesis.executiveSummary),
+      innovationPlays: (campaign.synthesis.innovationPlays || []).map(item => toText(item)).filter(Boolean),
+    }
+    : undefined;
   if (!campaign.synthesis?.intentDiagnoses?.length || !campaign.preprocess) {
-    return { ...campaign, probes: safeProbes(campaign) };
+    return { ...campaign, probes: safeProbes(campaign), synthesis: normalizedSynthesis };
   }
   const baseline = safeProbes(campaign).filter(p => p.phase === 'baseline');
   const needsMetrics = campaign.synthesis.intentDiagnoses.some(
     d => !d.metrics || typeof d.metrics.avgVoidSeverity !== 'number',
   );
   if (!needsMetrics) {
-    return { ...campaign, probes: safeProbes(campaign) };
+    return { ...campaign, probes: safeProbes(campaign), synthesis: normalizedSynthesis };
   }
   return {
     ...campaign,
     probes: safeProbes(campaign),
     synthesis: {
-      ...campaign.synthesis,
+      ...normalizedSynthesis!,
       intentDiagnoses: enrichIntentDiagnoses(
         campaign.preprocess,
         baseline,

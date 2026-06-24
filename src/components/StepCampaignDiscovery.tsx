@@ -13,6 +13,20 @@ const STAGE_LABELS: Record<string, string> = {
   done: 'Complete',
 };
 
+const toDisplayText = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (!value) return '';
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.description === 'string') return obj.description;
+    if (typeof obj.summary === 'string') return obj.summary;
+    if (typeof obj.text === 'string') return obj.text;
+    return JSON.stringify(value);
+  }
+  return '';
+};
+
 const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const uiLang = useWorkflowStore(s => s.uiLang);
   const ecosystem = useWorkflowStore(s => s.targetEcosystem);
@@ -25,14 +39,37 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const setCustomRegion = useWorkflowStore(s => s.setCustomRegion);
 
   const c = t.campaign;
+  const durationOptions = uiLang === 'zh'
+    ? [
+      { value: '30d', label: '30 天' },
+      { value: '90d', label: '90 天' },
+      { value: 'quarter', label: '季度（3个月）' },
+      { value: '180d', label: '半年（180 天）' },
+      { value: '365d', label: '一年（365 天）' },
+    ]
+    : uiLang === 'jp'
+      ? [
+        { value: '30d', label: '30日' },
+        { value: '90d', label: '90日' },
+        { value: 'quarter', label: '四半期（3か月）' },
+        { value: '180d', label: '半年（180日）' },
+        { value: '365d', label: '1年（365日）' },
+      ]
+      : [
+        { value: '30d', label: '30 days' },
+        { value: '90d', label: '90 days' },
+        { value: 'quarter', label: 'Quarter (3 months)' },
+        { value: '180d', label: 'Half year (180 days)' },
+        { value: '365d', label: '1 year (365 days)' },
+      ];
 
   const [topic, setTopic] = useState(campaign?.topic || '');
   const [questions, setQuestions] = useState(
     campaign?.input.seedQuestions?.join('\n') || ''
   );
   const [urls, setUrls] = useState(campaign?.input.sourceUrls?.join('\n') || '');
-  const [duration, setDuration] = useState<'30d' | '90d' | 'quarter'>(
-    (campaign?.duration as '30d' | '90d' | 'quarter') || '90d'
+  const [duration, setDuration] = useState<'30d' | '90d' | 'quarter' | '180d' | '365d'>(
+    (campaign?.duration as '30d' | '90d' | 'quarter' | '180d' | '365d') || '90d'
   );
   const [regionInput, setRegionInput] = useState(region);
   const [loading, setLoading] = useState(false);
@@ -138,9 +175,9 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                   onChange={e => setDuration(e.target.value as typeof duration)}
                   className="mt-2 w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-[#03234b] outline-none"
                 >
-                  <option value="30d">30 days</option>
-                  <option value="90d">90 days</option>
-                  <option value="quarter">Quarter</option>
+                  {durationOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -175,7 +212,7 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
         <>
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100">
             <h3 className="text-sm font-black uppercase tracking-widest text-[#03234b] mb-3">{c.execSummary}</h3>
-            <p className="text-sm text-slate-600 leading-relaxed">{campaign.synthesis.executiveSummary}</p>
+            <p className="text-sm text-slate-600 leading-relaxed">{toDisplayText(campaign.synthesis.executiveSummary)}</p>
           </div>
 
           {groups.length > 0 && (

@@ -28,7 +28,7 @@ import type { MultiModelVerificationResult } from '../services/multiModelService
 
 export type TargetEcosystem = 'global' | 'cn' | 'jp' | 'kr';
 
-export type CampaignDurationType = '30d' | '90d' | 'quarter' | 'custom';
+export type CampaignDurationType = '30d' | '90d' | 'quarter' | '180d' | '365d' | 'custom';
 
 export type CampaignStatus =
   | 'draft'       // created, not yet probed

@@ -31,6 +31,17 @@ function newProbeId() {
   return `probe-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
+function durationToPromptText(duration: CampaignDurationType): string {
+  switch (duration) {
+    case '30d': return '30 days';
+    case '90d': return '90 days';
+    case 'quarter': return 'Quarter (3 months)';
+    case '180d': return 'Half year (180 days)';
+    case '365d': return '1 year (365 days)';
+    default: return 'Custom';
+  }
+}
+
 async function gatherSourceContext(urls?: string[]): Promise<string> {
   if (!urls?.length) return '';
   const chunks: string[] = [];
@@ -150,7 +161,7 @@ export async function runCampaignPipeline(
     uiLang,
     ecosystem,
     region,
-    duration,
+    durationToPromptText(duration),
     sourceContext,
   );
   campaign.synthesis = {
