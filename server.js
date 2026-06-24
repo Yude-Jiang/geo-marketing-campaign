@@ -258,7 +258,13 @@ async function startServer() {
         signal: controller.signal,
       });
       clearTimeout(timer);
-      const json = await upstream.json();
+      const json = await upstream.json().catch(() => ({}));
+      // Surface upstream errors (bad key, quota, model not found) instead of
+      // silently returning an empty rawResponse that looks like "model said nothing".
+      if (!upstream.ok) {
+        const detail = json?.error?.message || json?.message || `Upstream HTTP ${upstream.status}`;
+        return res.status(502).json({ error: detail, rawResponse: '' });
+      }
       const rawResponse = json.choices?.[0]?.message?.content || '';
       res.json({ rawResponse, latencyMs: Date.now() - t0 });
     } catch (err) {
