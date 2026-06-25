@@ -239,6 +239,35 @@ export interface CampaignSynthesis {
   playbooks: CampaignPlaybook[];
   executiveSummary: string;
   innovationPlays: string[];
+  /** Ported from strategic-hub: 4-dimension strategic report shown on the Blueprint */
+  strategicReport?: StrategicReport;
+  /** Ported from strategic-hub: per-competitor "battle cards" shown on the Blueprint */
+  competitorAnalysis?: CompetitorInsight[];
+}
+
+/** Structured strategic report (4 executive dimensions + an action plan) */
+export interface StrategicReport {
+  executiveSummary: {
+    marketPulse: string;
+    coreRoadblocks: string;
+    strategicPivot: string;
+    keyInsight: string;
+  };
+  actionPlan: string[];
+}
+
+export type CompetitorThreatLevel = 'Low' | 'Medium' | 'High' | 'Critical';
+
+/** One competitor "battle card": why AI favors them and how to counter */
+export interface CompetitorInsight {
+  competitorName: string;
+  /** Current AI bias / preference toward this competitor */
+  aiPerception: string;
+  /** Why AI prefers them — the underlying corpus advantage */
+  corpusAdvantage: string;
+  threatLevel: CompetitorThreatLevel;
+  /** The cognitive gap to exploit to unseat them */
+  strategicOpening: string;
 }
 
 // ─── Campaign aggregate (persisted) ─────────────────────────────────────────

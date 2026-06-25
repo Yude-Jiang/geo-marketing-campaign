@@ -13,6 +13,7 @@ const ReportModal = lazy(() => import('./ReportModal'));
 import {
   ArrowLeft, Loader2, FileText, RefreshCw, CheckCircle2, Zap, ChevronDown, ChevronUp,
   ShieldCheck, AlertTriangle, Gauge, Users, Languages,
+  Target, Swords, ShieldAlert, Activity, Info, Lightbulb,
 } from 'lucide-react';
 
 const DASH_LABELS = {
@@ -82,12 +83,25 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const criticalVoids = baseline.filter(
     p => p.gemini?.voidSize === 'critical' || p.gemini?.voidSize === 'large',
   ).length;
-  const competitorSet = new Set(
-    baseline.flatMap(p => p.gemini?.dominantCompetitors || []),
-  );
+  const competitorFreq = (() => {
+    const m = new Map<string, number>();
+    for (const p of baseline) {
+      for (const cmp of p.gemini?.dominantCompetitors || []) {
+        m.set(cmp, (m.get(cmp) || 0) + 1);
+      }
+    }
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  })();
+  const competitorSet = new Set(competitorFreq.map(([name]) => name));
+  const maxCompFreq = competitorFreq[0]?.[1] || 1;
+  const strategicReport = syn.strategicReport;
+  const competitorCards = syn.competitorAnalysis || [];
   const langMismatch = campaign.uiLang !== uiLang;
   const severityColor = (sev: number) =>
     sev >= 7 ? '#ef4444' : sev >= 5 ? '#f59e0b' : sev >= 3 ? '#3cb4e6' : '#10b981';
+  const threatColor = (lvl: string) =>
+    lvl === 'Critical' ? '#ef4444' : lvl === 'High' ? '#f97316'
+    : lvl === 'Medium' ? '#f59e0b' : lvl === 'Low' ? '#10b981' : '#64748b';
 
   const handleGenerateReport = async () => {
     setReportContent('');
@@ -217,6 +231,43 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
           );
         })()}
 
+        {strategicReport?.executiveSummary && (
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+            <div className="bg-[#03234b] px-6 py-3 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[#ffd200]" />
+              <h3 className="text-white text-[13px] font-bold">{c.strategyReportTitle}</h3>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {([
+                { icon: Activity, label: c.strategyMarketPulse, val: strategicReport.executiveSummary.marketPulse, color: '#3cb4e6' },
+                { icon: AlertTriangle, label: c.strategyRoadblocks, val: strategicReport.executiveSummary.coreRoadblocks, color: '#ef4444' },
+                { icon: Target, label: c.strategyPivot, val: strategicReport.executiveSummary.strategicPivot, color: '#f59e0b' },
+                { icon: Lightbulb, label: c.strategyKeyInsight, val: strategicReport.executiveSummary.keyInsight, color: '#10b981' },
+              ]).filter(d => d.val).map((d, i) => (
+                <div key={i} className="rounded-xl border border-slate-100 p-4 bg-slate-50/50">
+                  <h4 className="u-eyebrow flex items-center gap-1.5 mb-1.5" style={{ color: d.color }}>
+                    <d.icon className="w-3.5 h-3.5" /> {d.label}
+                  </h4>
+                  <p className="text-[13px] text-[#03234b] leading-relaxed">{toDisplayText(d.val)}</p>
+                </div>
+              ))}
+            </div>
+            {strategicReport.actionPlan?.length > 0 && (
+              <div className="px-6 pb-6">
+                <h4 className="u-eyebrow text-[#5f6f85] mb-2">{c.strategyActionPlan}</h4>
+                <ol className="space-y-1.5">
+                  {strategicReport.actionPlan.map((step, i) => (
+                    <li key={i} className="flex gap-2.5 text-[13px] text-slate-600">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#3cb4e6]/10 text-[#3cb4e6] text-[11px] font-bold flex items-center justify-center">{i + 1}</span>
+                      {toDisplayText(step)}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </div>
+        )}
+
         {latestProgress && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
             <h3 className="text-[13px] font-bold text-emerald-800 mb-2">{c.progressTitle} (Day {latestProgress.daysSinceBaseline})</h3>
@@ -256,6 +307,71 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
             )}
           </div>
         );})}
+
+        {(competitorFreq.length > 0 || competitorCards.length > 0) && (
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-sm font-bold text-[#03234b] flex items-center gap-2">
+                <Swords className="w-4 h-4 text-rose-500" /> {c.competitorTitle}
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-1">{c.competitorDesc}</p>
+            </div>
+
+            {competitorFreq.length > 0 && (
+              <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100">
+                <h4 className="u-eyebrow text-[#5f6f85] mb-4">{c.competitorFreqTitle}</h4>
+                <div className="space-y-2.5">
+                  {competitorFreq.slice(0, 8).map(([name, count]) => (
+                    <div key={name} className="flex items-center gap-3">
+                      <span className="w-28 sm:w-40 text-[12px] font-bold text-[#03234b] truncate flex-shrink-0">{name}</span>
+                      <div className="flex-1 h-5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-rose-400 flex items-center justify-end pr-2"
+                          style={{ width: `${Math.max(8, (count / maxCompFreq) * 100)}%` }}
+                        >
+                          <span className="text-[10px] font-bold text-white">{count}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {competitorCards.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                {competitorCards.map((comp, idx) => (
+                  <div key={idx} className="bg-white rounded-2xl p-5 shadow-lg border border-rose-100 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-rose-50 rounded-bl-full -z-0" />
+                    <div className="relative flex justify-between items-start mb-4">
+                      <h4 className="text-lg font-black text-[#03234b]">{comp.competitorName}</h4>
+                      <span
+                        className="flex items-center gap-1 text-[10px] font-black uppercase px-2.5 py-1 rounded-full text-white"
+                        style={{ backgroundColor: threatColor(comp.threatLevel) }}
+                      >
+                        <AlertTriangle className="w-3 h-3" /> {comp.threatLevel}
+                      </span>
+                    </div>
+                    <div className="relative space-y-3">
+                      <div>
+                        <h5 className="u-eyebrow text-slate-400 flex items-center gap-1 mb-1"><Info className="w-3 h-3" /> {c.competitorPerception}</h5>
+                        <p className="text-[12px] text-slate-700 italic leading-relaxed bg-slate-50 p-2 rounded-lg border-l-2 border-[#3cb4e6]">“{toDisplayText(comp.aiPerception)}”</p>
+                      </div>
+                      <div>
+                        <h5 className="u-eyebrow text-amber-500 flex items-center gap-1 mb-1"><ShieldAlert className="w-3 h-3" /> {c.competitorCorpus}</h5>
+                        <p className="text-[12px] text-amber-900 font-medium bg-amber-50 p-2 rounded-lg border border-amber-100">{toDisplayText(comp.corpusAdvantage)}</p>
+                      </div>
+                      <div>
+                        <h5 className="u-eyebrow text-emerald-500 flex items-center gap-1 mb-1"><Activity className="w-3 h-3" /> {c.competitorOpening}</h5>
+                        <p className="text-[12px] text-[#03234b] font-medium leading-relaxed">{toDisplayText(comp.strategicOpening)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-[#03234b] flex items-center gap-2">

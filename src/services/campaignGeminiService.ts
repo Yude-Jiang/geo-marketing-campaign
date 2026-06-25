@@ -209,6 +209,35 @@ const synthesisSchema = {
         required: ['geoAction', 'tacticsType', 'targetSnippet'],
       },
     },
+    strategicReport: {
+      type: Type.OBJECT,
+      properties: {
+        executiveSummary: {
+          type: Type.OBJECT,
+          properties: {
+            marketPulse: { type: Type.STRING },
+            coreRoadblocks: { type: Type.STRING },
+            strategicPivot: { type: Type.STRING },
+            keyInsight: { type: Type.STRING },
+          },
+        },
+        actionPlan: strList,
+      },
+    },
+    competitorAnalysis: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          competitorName: { type: Type.STRING },
+          aiPerception: { type: Type.STRING },
+          corpusAdvantage: { type: Type.STRING },
+          threatLevel: { type: Type.STRING },
+          strategicOpening: { type: Type.STRING },
+        },
+        required: ['competitorName', 'aiPerception', 'corpusAdvantage', 'threatLevel', 'strategicOpening'],
+      },
+    },
   },
   required: ['brief', 'intentDiagnoses', 'playbooks', 'executiveSummary', 'innovationPlays'],
 };
@@ -448,6 +477,8 @@ Produce a complete campaign synthesis as JSON with:
 - playbooks: 4-8 CampaignPlaybook items (extend StrategicPlaybookItem fields: id, intentGroupIds, targetQuestionIds, funnelStage, effortTier, plus sourceLogic, tacticsType, contentPlatform, structuredDataStrategy, geoAction, targetSnippet, anchorIds)
 - executiveSummary: 3-4 sentences
 - innovationPlays: 3-5 unconventional GEO ideas
+- strategicReport: a structured executive report with executiveSummary = { marketPulse (how AI sees this category today), coreRoadblocks (what blocks ST from being the cited answer), strategicPivot (the core move to make), keyInsight (the single sharpest takeaway) } and actionPlan (4-6 concrete step-by-step GEO tasks). Each field 1-2 tight sentences.
+- competitorAnalysis: 3-6 competitor "battle cards" derived from the dominantCompetitors that recur across probes. For each: competitorName; aiPerception (how AI currently frames/prefers them, in quotes-worthy form); corpusAdvantage (WHY AI favors them — the underlying content/corpus logic, e.g. "dominates app-note PDFs indexed by AI"); threatLevel (one of Low/Medium/High/Critical, based on how often they dominate probes and how severe the resulting void); strategicOpening (the exact cognitive gap ST must exploit to unseat them).
 
 geoKpis must be GEO-only (ST binding rate, void severity, anchor verification) — no web traffic or lead counts.
 Use probe voidSeverity as baselines for KPI targets.
@@ -471,6 +502,8 @@ Return valid JSON matching the structure.`;
     playbooks: CampaignPlaybook[];
     executiveSummary: string;
     innovationPlays: string[];
+    strategicReport?: CampaignSynthesis['strategicReport'];
+    competitorAnalysis?: CampaignSynthesis['competitorAnalysis'];
   };
   let degraded = false;
   try {
@@ -498,6 +531,8 @@ Return valid JSON matching the structure.`;
         playbooks: [],
         executiveSummary: '',
         innovationPlays: [],
+        strategicReport: undefined,
+        competitorAnalysis: [],
       };
     }
   }
@@ -514,5 +549,7 @@ Return valid JSON matching the structure.`;
     })),
     executiveSummary: toText(parsed.executiveSummary),
     innovationPlays: (parsed.innovationPlays || []).map(item => toText(item)).filter(Boolean),
+    strategicReport: parsed.strategicReport,
+    competitorAnalysis: Array.isArray(parsed.competitorAnalysis) ? parsed.competitorAnalysis : [],
   };
 }
