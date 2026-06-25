@@ -224,18 +224,19 @@ const synthesisSchema = {
         actionPlan: strList,
       },
     },
-    competitorAnalysis: {
+    competitorDiagnoses: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
         properties: {
-          competitorName: { type: Type.STRING },
-          aiPerception: { type: Type.STRING },
+          name: { type: Type.STRING },
+          threatTier: { type: Type.STRING },
           corpusAdvantage: { type: Type.STRING },
-          threatLevel: { type: Type.STRING },
-          strategicOpening: { type: Type.STRING },
+          weakSpot: { type: Type.STRING },
+          interceptionPlay: { type: Type.STRING },
+          anchorIds: strList,
         },
-        required: ['competitorName', 'aiPerception', 'corpusAdvantage', 'threatLevel', 'strategicOpening'],
+        required: ['name', 'threatTier', 'corpusAdvantage', 'weakSpot', 'interceptionPlay'],
       },
     },
   },
@@ -478,7 +479,7 @@ Produce a complete campaign synthesis as JSON with:
 - executiveSummary: 3-4 sentences
 - innovationPlays: 3-5 unconventional GEO ideas
 - strategicReport: a structured executive report with executiveSummary = { marketPulse (how AI sees this category today), coreRoadblocks (what blocks ST from being the cited answer), strategicPivot (the core move to make), keyInsight (the single sharpest takeaway) } and actionPlan (4-6 concrete step-by-step GEO tasks). Each field 1-2 tight sentences.
-- competitorAnalysis: 3-6 competitor "battle cards" derived from the dominantCompetitors that recur across probes. For each: competitorName; aiPerception (how AI currently frames/prefers them, in quotes-worthy form); corpusAdvantage (WHY AI favors them — the underlying content/corpus logic, e.g. "dominates app-note PDFs indexed by AI"); threatLevel (one of Low/Medium/High/Critical, based on how often they dominate probes and how severe the resulting void); strategicOpening (the exact cognitive gap ST must exploit to unseat them).
+- competitorDiagnoses: diagnose the competitors that recur across the probes' dominantCompetitors. COVER AT LEAST THE 5 MOST FREQUENT. Every field must trace to probe evidence — be specific, no generic filler. For each: name; threatTier (one of dominant/strong/emerging — dominant = appears in many probes / drives severe voids); corpusAdvantage (WHY AI favors/cites them — the concrete underlying content/corpus logic, e.g. "dominates app-note PDFs indexed by AI"); weakSpot (their attackable gap); interceptionPlay (ST's concrete counter-move); anchorIds (the question ids where they dominate, for traceability).
 
 geoKpis must be GEO-only (ST binding rate, void severity, anchor verification) — no web traffic or lead counts.
 Use probe voidSeverity as baselines for KPI targets.
@@ -503,7 +504,7 @@ Return valid JSON matching the structure.`;
     executiveSummary: string;
     innovationPlays: string[];
     strategicReport?: CampaignSynthesis['strategicReport'];
-    competitorAnalysis?: CampaignSynthesis['competitorAnalysis'];
+    competitorDiagnoses?: CampaignSynthesis['competitorDiagnoses'];
   };
   let degraded = false;
   try {
@@ -532,7 +533,7 @@ Return valid JSON matching the structure.`;
         executiveSummary: '',
         innovationPlays: [],
         strategicReport: undefined,
-        competitorAnalysis: [],
+        competitorDiagnoses: [],
       };
     }
   }
@@ -550,6 +551,36 @@ Return valid JSON matching the structure.`;
     executiveSummary: toText(parsed.executiveSummary),
     innovationPlays: (parsed.innovationPlays || []).map(item => toText(item)).filter(Boolean),
     strategicReport: parsed.strategicReport,
-    competitorAnalysis: Array.isArray(parsed.competitorAnalysis) ? parsed.competitorAnalysis : [],
+    competitorDiagnoses: withMentionShare(
+      Array.isArray(parsed.competitorDiagnoses) ? parsed.competitorDiagnoses : [],
+      probes,
+    ),
   };
+}
+
+/**
+ * Deterministically compute each competitor's mention share (SOV) from the
+ * probes' dominantCompetitors — never let the LLM guess this number. Share =
+ * (times this competitor is named) / (total competitor mentions across probes).
+ * Matched case-insensitively by name.
+ */
+function withMentionShare(
+  diagnoses: CampaignSynthesis['competitorDiagnoses'],
+  probes: QuestionProbe[],
+): CampaignSynthesis['competitorDiagnoses'] {
+  const counts = new Map<string, number>();
+  let total = 0;
+  for (const p of probes) {
+    for (const name of p.gemini?.dominantCompetitors || []) {
+      const key = name.trim().toLowerCase();
+      if (!key) continue;
+      counts.set(key, (counts.get(key) || 0) + 1);
+      total += 1;
+    }
+  }
+  return diagnoses.map(d => ({
+    ...d,
+    anchorIds: Array.isArray(d.anchorIds) ? d.anchorIds : [],
+    mentionShare: total > 0 ? (counts.get((d.name || '').trim().toLowerCase()) || 0) / total : 0,
+  }));
 }

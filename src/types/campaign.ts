@@ -234,6 +234,8 @@ export interface CampaignPlaybook extends StrategicPlaybookItem {
 /** Full AI synthesis output after probes + intent roll-up */
 export interface CampaignSynthesis {
   synthesizedAt: string;
+  /** True when synthesis JSON failed to parse and most sections degraded to empty */
+  degraded?: boolean;
   brief: CampaignBriefDraft;
   intentDiagnoses: IntentGroupDiagnosis[];
   playbooks: CampaignPlaybook[];
@@ -241,8 +243,8 @@ export interface CampaignSynthesis {
   innovationPlays: string[];
   /** Ported from strategic-hub: 4-dimension strategic report shown on the Blueprint */
   strategicReport?: StrategicReport;
-  /** Ported from strategic-hub: per-competitor "battle cards" shown on the Blueprint */
-  competitorAnalysis?: CompetitorInsight[];
+  /** Structured competitor diagnoses — a first-class Blueprint asset (not a report-only by-product) */
+  competitorDiagnoses: CompetitorDiagnosis[];
 }
 
 /** Structured strategic report (4 executive dimensions + an action plan) */
@@ -256,18 +258,22 @@ export interface StrategicReport {
   actionPlan: string[];
 }
 
-export type CompetitorThreatLevel = 'Low' | 'Medium' | 'High' | 'Critical';
+export type CompetitorThreatTier = 'dominant' | 'strong' | 'emerging';
 
-/** One competitor "battle card": why AI favors them and how to counter */
-export interface CompetitorInsight {
-  competitorName: string;
-  /** Current AI bias / preference toward this competitor */
-  aiPerception: string;
-  /** Why AI prefers them — the underlying corpus advantage */
+/** Structured competitor diagnosis (persisted on the campaign synthesis) */
+export interface CompetitorDiagnosis {
+  name: string;
+  threatTier: CompetitorThreatTier;
+  /** Why AI prefers/cites it (corpus advantage) — must trace to probe evidence */
   corpusAdvantage: string;
-  threatLevel: CompetitorThreatLevel;
-  /** The cognitive gap to exploit to unseat them */
-  strategicOpening: string;
+  /** Its attackable weak spot */
+  weakSpot: string;
+  /** ST's interception play */
+  interceptionPlay: string;
+  /** Question ids it dominates, for traceability */
+  anchorIds: string[];
+  /** SOV: mention share across all probes' dominantCompetitors, 0–1. Computed in code, not by the LLM. */
+  mentionShare?: number;
 }
 
 // ─── Campaign aggregate (persisted) ─────────────────────────────────────────

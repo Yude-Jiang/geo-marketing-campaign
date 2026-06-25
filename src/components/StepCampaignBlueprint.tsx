@@ -59,6 +59,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isReprobing, setIsReprobing] = useState(false);
   const [expandedIg, setExpandedIg] = useState<string | null>(null);
+  const [showCompetitors, setShowCompetitors] = useState(true);
 
   if (!campaign || !syn) {
     return (
@@ -93,15 +94,14 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   })();
   const competitorSet = new Set(competitorFreq.map(([name]) => name));
-  const maxCompFreq = competitorFreq[0]?.[1] || 1;
   const strategicReport = syn.strategicReport;
-  const competitorCards = syn.competitorAnalysis || [];
+  const competitorDiagnoses = syn.competitorDiagnoses || [];
   const langMismatch = campaign.uiLang !== uiLang;
   const severityColor = (sev: number) =>
     sev >= 7 ? '#ef4444' : sev >= 5 ? '#f59e0b' : sev >= 3 ? '#3cb4e6' : '#10b981';
-  const threatColor = (lvl: string) =>
-    lvl === 'Critical' ? '#ef4444' : lvl === 'High' ? '#f97316'
-    : lvl === 'Medium' ? '#f59e0b' : lvl === 'Low' ? '#10b981' : '#64748b';
+  const threatTierColor = (tier: string) =>
+    tier === 'dominant' ? '#ef4444' : tier === 'strong' ? '#f59e0b'
+    : tier === 'emerging' ? '#3cb4e6' : '#64748b';
 
   const handleGenerateReport = async () => {
     setReportContent('');
@@ -308,66 +308,60 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
           </div>
         );})}
 
-        {(competitorFreq.length > 0 || competitorCards.length > 0) && (
-          <div className="space-y-5">
-            <div>
-              <h3 className="text-sm font-bold text-[#03234b] flex items-center gap-2">
-                <Swords className="w-4 h-4 text-rose-500" /> {c.competitorTitle}
-              </h3>
-              <p className="text-[11px] text-slate-400 mt-1">{c.competitorDesc}</p>
-            </div>
-
-            {competitorFreq.length > 0 && (
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100">
-                <h4 className="u-eyebrow text-[#5f6f85] mb-4">{c.competitorFreqTitle}</h4>
-                <div className="space-y-2.5">
-                  {competitorFreq.slice(0, 8).map(([name, count]) => (
-                    <div key={name} className="flex items-center gap-3">
-                      <span className="w-28 sm:w-40 text-[12px] font-bold text-[#03234b] truncate flex-shrink-0">{name}</span>
-                      <div className="flex-1 h-5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-rose-400 flex items-center justify-end pr-2"
-                          style={{ width: `${Math.max(8, (count / maxCompFreq) * 100)}%` }}
+        {competitorDiagnoses.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-lg overflow-hidden">
+            <button
+              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50"
+              onClick={() => setShowCompetitors(s => !s)}
+            >
+              <div>
+                <h3 className="text-sm font-bold text-[#03234b] flex items-center gap-2">
+                  <Swords className="w-4 h-4 text-rose-500" /> {c.competitorTitle}
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-1">{c.competitorDesc}</p>
+              </div>
+              {showCompetitors ? <ChevronUp className="w-5 h-5 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 flex-shrink-0" />}
+            </button>
+            {showCompetitors && (
+              <div className="px-6 pb-6 pt-2 border-t border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {competitorDiagnoses.map((comp, idx) => {
+                  const share = Math.round((comp.mentionShare ?? 0) * 100);
+                  const color = threatTierColor(comp.threatTier);
+                  return (
+                    <div key={idx} className="rounded-xl border border-slate-100 p-5 bg-slate-50/40">
+                      <div className="flex justify-between items-start mb-3">
+                        <h4 className="text-base font-black text-[#03234b]">{comp.name}</h4>
+                        <span
+                          className="flex items-center gap-1 text-[10px] font-black uppercase px-2.5 py-1 rounded-full text-white"
+                          style={{ backgroundColor: color }}
                         >
-                          <span className="text-[10px] font-bold text-white">{count}</span>
+                          <AlertTriangle className="w-3 h-3" /> {comp.threatTier}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="u-eyebrow text-slate-400 flex-shrink-0">SOV</span>
+                        <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${Math.max(3, share)}%`, backgroundColor: color }} />
+                        </div>
+                        <span className="text-[11px] font-bold text-[#03234b] flex-shrink-0">{share}%</span>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <h5 className="u-eyebrow text-amber-500 flex items-center gap-1 mb-1"><ShieldAlert className="w-3 h-3" /> {c.competitorCorpus}</h5>
+                          <p className="text-[12px] text-amber-900 font-medium bg-amber-50 p-2 rounded-lg border border-amber-100">{toDisplayText(comp.corpusAdvantage)}</p>
+                        </div>
+                        <div>
+                          <h5 className="u-eyebrow text-slate-400 flex items-center gap-1 mb-1"><Info className="w-3 h-3" /> {c.competitorWeakSpot}</h5>
+                          <p className="text-[12px] text-slate-700 leading-relaxed">{toDisplayText(comp.weakSpot)}</p>
+                        </div>
+                        <div>
+                          <h5 className="u-eyebrow text-emerald-500 flex items-center gap-1 mb-1"><Activity className="w-3 h-3" /> {c.competitorInterception}</h5>
+                          <p className="text-[12px] text-[#03234b] font-medium leading-relaxed">{toDisplayText(comp.interceptionPlay)}</p>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {competitorCards.length > 0 && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                {competitorCards.map((comp, idx) => (
-                  <div key={idx} className="bg-white rounded-2xl p-5 shadow-lg border border-rose-100 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-rose-50 rounded-bl-full -z-0" />
-                    <div className="relative flex justify-between items-start mb-4">
-                      <h4 className="text-lg font-black text-[#03234b]">{comp.competitorName}</h4>
-                      <span
-                        className="flex items-center gap-1 text-[10px] font-black uppercase px-2.5 py-1 rounded-full text-white"
-                        style={{ backgroundColor: threatColor(comp.threatLevel) }}
-                      >
-                        <AlertTriangle className="w-3 h-3" /> {comp.threatLevel}
-                      </span>
-                    </div>
-                    <div className="relative space-y-3">
-                      <div>
-                        <h5 className="u-eyebrow text-slate-400 flex items-center gap-1 mb-1"><Info className="w-3 h-3" /> {c.competitorPerception}</h5>
-                        <p className="text-[12px] text-slate-700 italic leading-relaxed bg-slate-50 p-2 rounded-lg border-l-2 border-[#3cb4e6]">“{toDisplayText(comp.aiPerception)}”</p>
-                      </div>
-                      <div>
-                        <h5 className="u-eyebrow text-amber-500 flex items-center gap-1 mb-1"><ShieldAlert className="w-3 h-3" /> {c.competitorCorpus}</h5>
-                        <p className="text-[12px] text-amber-900 font-medium bg-amber-50 p-2 rounded-lg border border-amber-100">{toDisplayText(comp.corpusAdvantage)}</p>
-                      </div>
-                      <div>
-                        <h5 className="u-eyebrow text-emerald-500 flex items-center gap-1 mb-1"><Activity className="w-3 h-3" /> {c.competitorOpening}</h5>
-                        <p className="text-[12px] text-[#03234b] font-medium leading-relaxed">{toDisplayText(comp.strategicOpening)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

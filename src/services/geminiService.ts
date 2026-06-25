@@ -252,10 +252,10 @@ strategicPivot: ${sr.strategicPivot}
 keyInsight: ${sr.keyInsight}
 actionPlan:
 ${(syn?.strategicReport?.actionPlan || []).map((s, i) => `  ${i + 1}. ${s}`).join('\n')}` : '';
-  const competitorBattleCards = (syn?.competitorAnalysis || []).map((comp, idx) => `${idx + 1}. ${comp.competitorName} [threat: ${comp.threatLevel}]
-- aiPerception: ${comp.aiPerception}
+  const competitorBattleCards = (syn?.competitorDiagnoses || []).map((comp, idx) => `${idx + 1}. ${comp.name} [tier: ${comp.threatTier}${typeof comp.mentionShare === 'number' ? `, SOV: ${Math.round(comp.mentionShare * 100)}%` : ''}]
 - corpusAdvantage: ${comp.corpusAdvantage}
-- strategicOpening: ${comp.strategicOpening}`).join('\n');
+- weakSpot: ${comp.weakSpot}
+- interceptionPlay: ${comp.interceptionPlay}`).join('\n');
 
   const geminiExecEvidence = probes.map((pr, idx) => `Q${idx + 1}: ${pr.questionText}
 - simulatedAnswer: ${pr.gemini.simulatedAnswer.slice(0, 380)}

@@ -39,6 +39,8 @@ function normalizeCampaign(campaign: Campaign | null): Campaign | null {
       ...campaign.synthesis,
       executiveSummary: toText(campaign.synthesis.executiveSummary),
       innovationPlays: (campaign.synthesis.innovationPlays || []).map(item => toText(item)).filter(Boolean),
+      // Back-compat: campaigns persisted before competitorDiagnoses existed
+      competitorDiagnoses: campaign.synthesis.competitorDiagnoses || [],
     }
     : undefined;
   if (!campaign.synthesis?.intentDiagnoses?.length || !campaign.preprocess) {
