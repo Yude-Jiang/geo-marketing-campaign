@@ -1085,8 +1085,39 @@ footer{
   .card-grid.cols-2,.card-grid.cols-3{grid-template-columns:1fr}
   .hero h1{font-size:22px}
   .page{padding:24px 16px 60px}
+  .roadmap-phases{grid-template-columns:1fr}
 }
+/* ── ROADMAP (replaces the timeline table) ── */
+.roadmap{margin:14px 0 8px}
+.roadmap-arc{position:relative;padding:8px 8px 0}
+.roadmap-metric{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px}
+.roadmap-metric b{color:var(--blue)}
+.roadmap-track{position:relative;height:84px}
+.roadmap-track::before{content:'';position:absolute;left:2%;right:2%;bottom:18px;height:3px;border-radius:2px;background:linear-gradient(90deg,#cbd5e1,#3cb4e6);transform:skewY(-7deg);transform-origin:left center}
+.rm-dot{position:absolute;transform:translateX(-50%);text-align:center}
+.rm-dot:nth-child(1){bottom:8px}
+.rm-dot:nth-child(2){bottom:26px}
+.rm-dot:nth-child(3){bottom:46px}
+.rm-dot:nth-child(4){bottom:64px}
+.rm-dot i{display:block;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--blue);margin:0 auto;box-shadow:0 1px 5px rgba(3,35,75,.18)}
+.rm-dot em{display:block;font-style:normal;font-size:10px;font-weight:700;color:var(--muted);margin-top:4px;white-space:nowrap}
+.roadmap-phases{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.phase{position:relative;background:#f8fafc;border:1px solid #e8edf3;border-radius:14px;padding:14px 14px 12px;border-top:3px solid var(--blue)}
+.phase-name{font-weight:800;color:var(--navy);font-size:13px;margin-bottom:6px}
+.phase-do{font-size:12px;color:#475569;line-height:1.55}
+.phase-kpi{margin-top:9px;font-size:11px;font-weight:700;color:var(--blue);background:rgba(60,180,230,.1);padding:4px 9px;border-radius:8px;display:inline-block}
+/* ── APPENDIX (collapsed details) ── */
+details{margin:10px 0;border:1px solid #e8edf3;border-radius:12px;background:#fff;overflow:hidden}
+details>summary{cursor:pointer;list-style:none;padding:12px 16px;font-weight:700;font-size:13px;color:var(--navy);background:#f8fafc}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:'▸';margin-right:8px;color:var(--blue);font-size:11px}
+details[open]>summary::before{content:'▾'}
+details>summary:hover{background:#f1f5f9}
+details>*:not(summary){padding:0 16px}
+details>*:not(summary):last-child{padding-bottom:14px}
 @media print{
+  details{break-inside:avoid}
+  details:not([open]){display:block}
   .top-header{position:static}
   .action-card:hover{transform:none;box-shadow:none}
   .sec{animation:none}

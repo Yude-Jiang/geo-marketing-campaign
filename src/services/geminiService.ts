@@ -387,7 +387,7 @@ CRITICAL QUALITY RULES:
 - SCANNABILITY FIRST: an executive must grasp the situation in 30 seconds. Lead with conclusions, then evidence. Prefer bullets, cards, tables and visual indicators over paragraphs. NO walls of text.
 - BREVITY: every bullet ≤ 25 words. Never write 3 sentences where 1 sharp bullet works. Cut adjectives and filler; keep numbers, causality and the action.
 - VISUAL HIERARCHY: use the styled cards/tables/timeline structure for emphasis. Put the single most important number or risk in large/bold form per section.
-- Open the report with a "Key Takeaways" card (3-5 one-line bullets) that a reader could act on without reading the rest.
+- Open the report with a "Strategic Thesis" (one-sentence bet + 3 supports), NOT a scattered takeaways list.
 - DATA INTEGRITY (highest priority): the header 档案编号, 情报来源/模型名, and 报告日期 MUST be the exact archiveId / groundingModel / reportDate values from REPORT METADATA. NEVER invent an archive number, model version (e.g. do not write "Gemini 1.5 Pro" or any version you were not given), or date.
 - DEGRADED SYNTHESIS: if synthesisDegraded is true, the campaign synthesis failed to parse and most sections are empty. Render a prominent red warning banner at the very top ("⚠ 本报告合成数据不完整 — synthesis 解析失败,请重跑") and do NOT fabricate brief/intent/playbook content to fill the gaps.
 - NO FABRICATION: every model-specific claim, competitor corpus-advantage claim, and metric must trace to provided probe/snapshot data. If data is absent, state "数据缺失/待补充" — never speculate to fill a section.
@@ -398,35 +398,53 @@ CRITICAL QUALITY RULES:
 - Must explicitly include competitor diagnosis (threat matrix + why competitor wins + interception plan).
 - Every major claim must map to concrete probe evidence.
 
-MANDATORY HTML BODY STRUCTURE (use these section labels exactly):
-0) <div class="sec-label">Key Takeaways</div>
-   - 3-5 one-line bullets, each ≤ 20 words: the headline finding + the decision/action it implies. This is the TL;DR an exec reads first.
-1) <div class="sec-label">Archive Snapshot</div>
-   - 4-card summary (risk/opportunity/ST visibility/priority), each card = 1 big number + ≤ 6-word label
-2) <div class="sec-label">Timeline: T0 → T30 → T60 → T90</div>
-   - Present as a true timeline table with milestones, actions, expected GEO signal lift
-3) <div class="sec-label">Gemini Simulation Executive Evidence</div>
-   - Per-question evidence bullets (what Gemini answered, why it matters)
-4) <div class="sec-label">Four-LLM Cross-Model Evidence</div>
-   - Render strictly per the FOUR-LLM SECTION directive in DATA.
-   - If real data exists: compare only the models actually probed, by question, using their real responses; mark unprobed models "未探测".
-   - If no real data: render a single "⚠ 待补充真实探测" status card and STOP. Do not fabricate model insights or a "模拟与推演" disclaimer.
-5) <div class="sec-label">Competitor Diagnosis Matrix</div>
-   - If COMPETITOR BATTLE CARDS are provided, build the matrix from them (one row per card: competitor, threatLevel, corpusAdvantage = why AI prefers them, strategicOpening = interception action). Otherwise fall back to the COMPETITOR DIAGNOSIS SEED counts.
-   - At least top 5 competitors when available; evidence-based from probes/cards, not generic statements
-6) <div class="sec-label">Intent Deep-Dive</div>
-   - For each intent group, a compact card: metrics (as inline stat chips) + 1-line root cause + 1-line repair logic + linked playbook tags. Max ~3 bullets per group — depth via precision, not length.
-7) <div class="sec-label">GEO Cognitive Baseline Table</div>
-8) <div class="sec-label">Playbook Deployment Board</div>
-9) <div class="sec-label">Innovation Lab</div>
-10) <div class="sec-label">Execution Checklist</div>
+OUTPUT STRUCTURE — INVERTED PYRAMID. The BODY is executive (1–2 screens, decisions first). All granular evidence goes into a collapsed APPENDIX using <details><summary>…</summary>…</details>. Internal IDs (pb-/q-/ig-/T1/T2) and Q1–Q8 labels are FORBIDDEN in the body (appendix only).
 
-BREVITY & SCANNABILITY RULES:
-- Intent section: max ~3 tight bullets per intent group (root cause, repair, linked playbooks). Precision over volume — never pad to hit a length.
-- Four-LLM section: when hasRealMultiModel is false, render a single status card and STOP (no padding).
-- Timeline: a compact table (phase goal, key action, KPI target, probe checkpoint) — one row per phase, not prose.
-- Competitor matrix: a table, one row per competitor (≤ 8 words per cell), not paragraphs.
-- Avoid fluff adjectives; every line must carry a number, a cause, or an action. If it doesn't, delete it.
+BODY (executive — use these section labels exactly):
+1) <div class="sec-label">Strategic Thesis</div>
+   - One sentence: "We are betting that …" + exactly 3 supporting bullets. Replaces a scattered takeaways list.
+2) <div class="sec-label">Executive Scorecard</div>
+   - 3–4 core metrics as cards, each baseline→target WITH a business translation. NEVER show a naked GEO vanity metric: translate every KPI to business meaning (e.g. "AI 提及率 16.5% → 60% ≈ 每季度约 N 次 AI 选型曝光"; "锚点验证率 → 被 AI 正确引用的产品事实数"). No invented web-traffic/lead numbers.
+3) <div class="sec-label">90 / 180-Day Roadmap</div>
+   - Render the .roadmap component (skeleton below). DO NOT use a <table> for the timeline.
+4) <div class="sec-label">The Ask</div>
+   - What leadership must approve: budget/resource tier + the blockers to unlock (e.g. STM32 C5 enablement). 3–5 decision bullets.
+5) <div class="sec-label">Competitor Diagnosis Matrix</div>
+   - Render the persisted COMPETITOR BATTLE CARDS verbatim — one row/card per competitor: name, threatTier, SOV%, corpusAdvantage (why AI prefers them), weakSpot, interceptionPlay, and crossModelValidation when present. Do NOT re-invent. Fall back to COMPETITOR DIAGNOSIS SEED only if no battle cards.
+
+APPENDIX (wrap EACH in <details>, collapsed):
+6) <details><summary>Per-Question Evidence (Gemini + Four-LLM)</summary> … </details>
+   - ONE merged block per question: Gemini simulation AND the Four-LLM cross-model evidence together (never Gemini once then Four-LLM again). Follow the FOUR-LLM SECTION directive for provenance; if no real CN data, render the single status card and stop.
+7) <details><summary>GEO Cognitive Baseline Table</summary> … </details>
+8) <details><summary>Intent Deep-Dive</summary> … </details> — per intent: metrics + 1-line root cause + 1-line repair + linked playbook tags.
+9) <details><summary>Playbook Deployment Board</summary> … </details>
+10) <details><summary>Innovation Lab</summary> … </details>
+11) <details><summary>Execution Checklist</summary> … </details>
+
+.roadmap COMPONENT — fill this EXACT skeleton in %%HTML_BODY%% (fixed class names, no <table>, no runtime SVG):
+<div class="roadmap">
+  <div class="roadmap-arc">
+    <div class="roadmap-metric">AI 提及率 <b>{baseline}%</b> → <b>{target}%</b></div>
+    <div class="roadmap-track">
+      <span class="rm-dot" style="left:0%"><i></i><em>Day 0</em></span>
+      <span class="rm-dot" style="left:33%"><i></i><em>Day 30</em></span>
+      <span class="rm-dot" style="left:66%"><i></i><em>Day 90</em></span>
+      <span class="rm-dot" style="left:100%"><i></i><em>Day 180</em></span>
+    </div>
+  </div>
+  <div class="roadmap-phases">
+    <div class="phase"><div class="phase-name">{phase name}</div><div class="phase-do">{key action}</div><div class="phase-kpi">{KPI target}</div></div>
+    <div class="phase">…</div>
+    <div class="phase">…</div>
+  </div>
+</div>
+
+HARD RULES:
+- Every KPI carries a business translation; no naked GEO vanity numbers in the body.
+- Internal IDs (pb-/q-/ig-/T1/T2) and Q1–Q8 labels: appendix only, never in the body.
+- Body ≤ ~2 screens; push all granular per-question evidence into the <details> appendix; do NOT repeat a question's evidence in both body and appendix.
+- Keep the OUTPUT CONTRACT: output STARTS with %%MD_START%% (no preamble/prose before it); both marker pairs (MD + HTML_BODY) opened and closed; no text after %%HTML_BODY_END%%.
+- Avoid fluff; every line carries a number, a cause, or an action.
 
 DATA:
 ${data}`;
