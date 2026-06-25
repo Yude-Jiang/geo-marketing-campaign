@@ -243,6 +243,20 @@ function buildCampaignReportPrompt(p: CampaignReportParams): string {
 - relatedVoidSeverity: ${(relatedIntent?.metrics?.avgVoidSeverity ?? 0).toFixed(1)}`;
   }).join('\n');
 
+  // Structured strategic report + competitor battle cards (synthesis output,
+  // same data shown on the Blueprint) — keeps the report consistent with the UI.
+  const sr = syn?.strategicReport?.executiveSummary;
+  const strategicReportSeed = sr ? `marketPulse: ${sr.marketPulse}
+coreRoadblocks: ${sr.coreRoadblocks}
+strategicPivot: ${sr.strategicPivot}
+keyInsight: ${sr.keyInsight}
+actionPlan:
+${(syn?.strategicReport?.actionPlan || []).map((s, i) => `  ${i + 1}. ${s}`).join('\n')}` : '';
+  const competitorBattleCards = (syn?.competitorAnalysis || []).map((comp, idx) => `${idx + 1}. ${comp.competitorName} [threat: ${comp.threatLevel}]
+- aiPerception: ${comp.aiPerception}
+- corpusAdvantage: ${comp.corpusAdvantage}
+- strategicOpening: ${comp.strategicOpening}`).join('\n');
+
   const geminiExecEvidence = probes.map((pr, idx) => `Q${idx + 1}: ${pr.questionText}
 - simulatedAnswer: ${pr.gemini.simulatedAnswer.slice(0, 380)}
 - marketPulse: ${pr.gemini.marketPulse.slice(0, 240)}
@@ -327,6 +341,12 @@ ${playbooks.map((pb, i) => `${i + 1}. [${pb.tacticsType}] ${pb.geoAction}\n   Sn
 INNOVATION PLAYS:
 ${(syn?.innovationPlays || []).join('\n')}
 
+STRATEGIC REPORT (structured synthesis — use verbatim for the Key Takeaways / executive sections; do not contradict):
+${strategicReportSeed || 'N/A'}
+
+COMPETITOR BATTLE CARDS (structured synthesis — prefer these over the raw COMPETITOR DIAGNOSIS SEED counts when present; one matrix row per card, keep threatLevel/corpusAdvantage/strategicOpening):
+${competitorBattleCards || 'N/A'}
+
 GEMINI SIMULATION EXECUTIVE EVIDENCE (PER QUESTION):
 ${geminiExecEvidence || 'N/A'}
 
@@ -392,9 +412,8 @@ MANDATORY HTML BODY STRUCTURE (use these section labels exactly):
    - If real data exists: compare only the models actually probed, by question, using their real responses; mark unprobed models "未探测".
    - If no real data: render a single "⚠ 待补充真实探测" status card and STOP. Do not fabricate model insights or a "模拟与推演" disclaimer.
 5) <div class="sec-label">Competitor Diagnosis Matrix</div>
-   - At least top 5 competitors
-   - For each competitor: threat level, why AI prefers them (corpus advantage), weak spot, interception action
-   - Must be evidence-based from probes and model outputs, not generic statements
+   - If COMPETITOR BATTLE CARDS are provided, build the matrix from them (one row per card: competitor, threatLevel, corpusAdvantage = why AI prefers them, strategicOpening = interception action). Otherwise fall back to the COMPETITOR DIAGNOSIS SEED counts.
+   - At least top 5 competitors when available; evidence-based from probes/cards, not generic statements
 6) <div class="sec-label">Intent Deep-Dive</div>
    - For each intent group, a compact card: metrics (as inline stat chips) + 1-line root cause + 1-line repair logic + linked playbook tags. Max ~3 bullets per group — depth via precision, not length.
 7) <div class="sec-label">GEO Cognitive Baseline Table</div>
