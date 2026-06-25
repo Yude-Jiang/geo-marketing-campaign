@@ -275,38 +275,46 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
           </div>
         )}
 
-        {syn.intentDiagnoses.map(ig => {
-          const stRate = ((ig.metrics?.stMentionRate ?? 0) * 100).toFixed(0);
-          const avgVoid = (ig.metrics?.avgVoidSeverity ?? 0).toFixed(1);
-          const critical = ig.metrics?.criticalVoidCount ?? 0;
-          return (
-          <div key={ig.intentGroupId} className="bg-white rounded-2xl border border-slate-100 shadow-lg overflow-hidden">
-            <button
-              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50"
-              onClick={() => setExpandedIg(expandedIg === ig.intentGroupId ? null : ig.intentGroupId)}
-            >
-              <div className="flex-1 min-w-0 mr-4">
-                <h3 className="font-bold text-[#03234b]">{ig.label}</h3>
-                <p className="text-[11px] text-[#5f6f85] mt-1">
-                  ST rate {stRate}% · avg void {avgVoid} · {critical} critical
-                </p>
-                <div className="mt-2 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(100, (Number(avgVoid) / 10) * 100)}%`,
-                      backgroundColor: severityColor(Number(avgVoid)),
-                    }}
-                  />
-                </div>
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold text-[#03234b] flex items-center gap-2">
+            <Gauge className="w-4 h-4 text-[#3cb4e6]" /> {c.intentDiagnosisTitle}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
+            {syn.intentDiagnoses.map(ig => {
+              const stRate = ((ig.metrics?.stMentionRate ?? 0) * 100).toFixed(0);
+              const avgVoid = (ig.metrics?.avgVoidSeverity ?? 0).toFixed(1);
+              const critical = ig.metrics?.criticalVoidCount ?? 0;
+              return (
+              <div key={ig.intentGroupId} className="bg-white rounded-2xl border border-slate-100 shadow-lg overflow-hidden">
+                <button
+                  className="w-full px-5 py-4 text-left hover:bg-slate-50"
+                  onClick={() => setExpandedIg(expandedIg === ig.intentGroupId ? null : ig.intentGroupId)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-bold text-[#03234b] text-[14px] leading-snug">{ig.label}</h3>
+                    {expandedIg === ig.intentGroupId ? <ChevronUp className="w-4 h-4 flex-shrink-0 mt-0.5" /> : <ChevronDown className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                  </div>
+                  <p className="text-[11px] text-[#5f6f85] mt-1">
+                    ST rate {stRate}% · avg void {avgVoid} · {critical} critical
+                  </p>
+                  <div className="mt-2 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(100, (Number(avgVoid) / 10) * 100)}%`,
+                        backgroundColor: severityColor(Number(avgVoid)),
+                      }}
+                    />
+                  </div>
+                </button>
+                {expandedIg === ig.intentGroupId && (
+                  <div className="px-5 pb-4 text-[13px] text-slate-600 border-t border-slate-100 pt-3 leading-relaxed">{toDisplayText(ig.narrative)}</div>
+                )}
               </div>
-              {expandedIg === ig.intentGroupId ? <ChevronUp className="w-5 h-5 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 flex-shrink-0" />}
-            </button>
-            {expandedIg === ig.intentGroupId && (
-              <div className="px-6 pb-4 text-sm text-slate-600 border-t border-slate-100 pt-4">{toDisplayText(ig.narrative)}</div>
-            )}
+            );})}
           </div>
-        );})}
+        </div>
+
 
         {competitorDiagnoses.length > 0 && (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-lg overflow-hidden">
@@ -358,6 +366,12 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                           <h5 className="u-eyebrow text-emerald-500 flex items-center gap-1 mb-1"><Activity className="w-3 h-3" /> {c.competitorInterception}</h5>
                           <p className="text-[12px] text-[#03234b] font-medium leading-relaxed">{toDisplayText(comp.interceptionPlay)}</p>
                         </div>
+                        {comp.crossModelValidation && (
+                          <div>
+                            <h5 className="u-eyebrow text-[#3cb4e6] flex items-center gap-1 mb-1"><Users className="w-3 h-3" /> {c.competitorCrossModel}</h5>
+                            <p className="text-[12px] text-slate-600 leading-relaxed bg-[#3cb4e6]/5 p-2 rounded-lg border border-[#3cb4e6]/15">{toDisplayText(comp.crossModelValidation)}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

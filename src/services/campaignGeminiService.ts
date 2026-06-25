@@ -234,6 +234,7 @@ const synthesisSchema = {
           corpusAdvantage: { type: Type.STRING },
           weakSpot: { type: Type.STRING },
           interceptionPlay: { type: Type.STRING },
+          crossModelValidation: { type: Type.STRING },
           anchorIds: strList,
         },
         required: ['name', 'threatTier', 'corpusAdvantage', 'weakSpot', 'interceptionPlay'],
@@ -457,6 +458,20 @@ export async function synthesizeCampaign(
     multiModelConsensus: p.multiModel?.consensusLevel,
   }));
 
+  // Real China-local LLM evidence (DeepSeek/Qwen/Doubao/Kimi) per question —
+  // so competitor analysis is cross-validated against actual local-model output,
+  // not just Gemini's simulation. Empty when no CN probes ran (non-CN campaign).
+  const crossModelEvidence = probes
+    .filter(p => (p.multiModel?.snapshots || []).some(s => !s.error && s.rawResponse?.trim()))
+    .map(p => {
+      const snaps = (p.multiModel!.snapshots || []).filter(s => !s.error && s.rawResponse?.trim());
+      return `Q: ${p.questionText}\n` + snaps.map(s =>
+        `  - ${s.modelName} [${s.sentiment}] entities: ${(s.keyEntities || []).slice(0, 8).join(', ') || '—'}\n    excerpt: ${(s.rawResponse || '').slice(0, 220)}`,
+      ).join('\n');
+    }).join('\n\n');
+  const hasCrossModel = crossModelEvidence.length > 0;
+  const regionIsCn = ecosystem === 'cn' || /\b(cn|china|prc)\b|中国|大陆|大陸/i.test(region || '');
+
   const prompt = `You are a senior automotive semiconductor marketing strategist writing a GEO Campaign plan.
 
 CAMPAIGN TOPIC: ${topic}
@@ -472,6 +487,9 @@ ${JSON.stringify(preprocess.intentGroups, null, 2)}
 
 ${sourceContext ? `SOURCE MATERIALS:\n${sourceContext.slice(0, 6000)}` : ''}
 
+${hasCrossModel ? `CHINA-LOCAL MODEL EVIDENCE (REAL responses from DeepSeek / Qwen / Doubao / Kimi — NOT simulation):
+${crossModelEvidence.slice(0, 7000)}
+` : ''}
 Produce a complete campaign synthesis as JSON with:
 - brief: ST-style campaign brief (objectives, audience, offer, market, geoKpis with phase targets derived from probe baselines, timeline phases, channelMixSuggestion, budgetTier S/M/L)
 - intentDiagnoses: one per intentGroup with metrics computed from probes, narrative, failureDiagnosis, recommendedPlaybookIds
@@ -479,7 +497,21 @@ Produce a complete campaign synthesis as JSON with:
 - executiveSummary: 3-4 sentences
 - innovationPlays: 3-5 unconventional GEO ideas
 - strategicReport: a structured executive report with executiveSummary = { marketPulse (how AI sees this category today), coreRoadblocks (what blocks ST from being the cited answer), strategicPivot (the core move to make), keyInsight (the single sharpest takeaway) } and actionPlan (4-6 concrete step-by-step GEO tasks). Each field 1-2 tight sentences.
-- competitorDiagnoses: diagnose the competitors that recur across the probes' dominantCompetitors. COVER AT LEAST THE 5 MOST FREQUENT. Every field must trace to probe evidence — be specific, no generic filler. For each: name; threatTier (one of dominant/strong/emerging — dominant = appears in many probes / drives severe voids); corpusAdvantage (WHY AI favors/cites them — the concrete underlying content/corpus logic, e.g. "dominates app-note PDFs indexed by AI"); weakSpot (their attackable gap); interceptionPlay (ST's concrete counter-move); anchorIds (the question ids where they dominate, for traceability).
+- competitorDiagnoses: a real MARKET analysis of the competitors recurring across the probes' dominantCompetitors AND named in the China-local model evidence. COVER AT LEAST THE 5 MOST FREQUENT. Do NOT just restate GEO void metrics — analyse the competitive market. Every field must be concrete, specific and traceable to evidence; no generic filler. For each:
+    • name
+    • threatTier (dominant/strong/emerging — dominant = named across many probes/models and driving severe voids)
+    • corpusAdvantage: the SPECIFIC market + corpus reasons AI favors/cites them — products/platforms they own, design-win footprint, where their content dominates (e.g. "owns the ADAS SoC reference-design narrative; saturates CSDN/zhihu teardown posts"). Go beyond "they are mentioned more".
+    • weakSpot: a concrete, attackable gap (product, ecosystem, region, or corpus blind spot), not a vague "less coverage".
+    • interceptionPlay: ST's specific counter-move tied to that weak spot.
+    • crossModelValidation: ${hasCrossModel ? 'how the China-local models (DeepSeek/Qwen/Doubao/Kimi) corroborate or DIVERGE from the Gemini view on this competitor — cite which local models named them and any disagreement. This is mandatory grounding, not optional.' : 'set to a short note that local-model (DeepSeek/Qwen/Doubao/Kimi) validation is pending for this campaign (no CN probe ran).'}
+    • anchorIds: question ids where they dominate, for traceability.
+
+CHANNEL & TACTICS GUIDANCE — playbooks.contentPlatform, playbooks.tacticsType and brief.channelMixSuggestion MUST use real, region-appropriate channels and tactics:
+${regionIsCn ? `This is a CHINA campaign — use the China media landscape, NOT Western defaults (do not propose Google Search, Reddit, X/Twitter, LinkedIn as primary):
+- Owned media: WeChat Service Account (微信服务号), Zhihu (知乎), Bilibili (B站), Chinese technical forums/communities (中文论坛, e.g. CSDN / EEWORLD / 21ic).
+- Vertical & earned media: industry vertical media (垂直媒体), engineer KOL/community seeding.
+- Tactics: Email (owned lists + third-party EDM/垂直媒体邮件), Baidu paid search (百度竞价/品牌专区), Bing paid search, structured Q&A seeding (Zhihu/百度知道) for GEO.
+Map each playbook to a concrete channel from this list and say whether it is owned / vertical / paid.` : `Use region-appropriate channels for a global/Western campaign (e.g. Google paid search, Bing, LinkedIn, YouTube, owned email + third-party EDM, technical blogs and developer communities). Label each as owned / earned / paid.`}
 
 geoKpis must be GEO-only (ST binding rate, void severity, anchor verification) — no web traffic or lead counts.
 Use probe voidSeverity as baselines for KPI targets.

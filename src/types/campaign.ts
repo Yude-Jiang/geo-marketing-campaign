@@ -270,6 +270,8 @@ export interface CompetitorDiagnosis {
   weakSpot: string;
   /** ST's interception play */
   interceptionPlay: string;
+  /** How China-local LLMs (DeepSeek/Qwen/Doubao/Kimi) corroborate or diverge on this competitor */
+  crossModelValidation?: string;
   /** Question ids it dominates, for traceability */
   anchorIds: string[];
   /** SOV: mention share across all probes' dominantCompetitors, 0–1. Computed in code, not by the LLM. */
