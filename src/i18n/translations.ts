@@ -73,6 +73,20 @@ export const translations = {
       tableTooltipSt: 'Self-mention / 品牌自提及强度',
       tableTooltipVoid: 'Semantic void size (severity) / 语义空白大小（严重度）',
       tableTooltipTier: 'Question tier: category or sub-node / 问题层级：品类层或子节点',
+      guide: {
+        toggle: '名词解释 · 这个工具怎么读',
+        intro: '这是一个 GEO（生成式引擎优化）战役规划工具：输入主题 → AI 模拟大模型如何回答相关问题（探针）→ 找出你的品牌在 AI 答案中的「认知空白」→ 自动生成可执行的 Brief 与 Playbook。',
+        terms: [
+          { term: '意图分组', desc: '把种子问题按用户意图聚类。标签后括号内的数字 = 该组包含的问题数，例如 (3) 表示这组有 3 个问题。' },
+          { term: 'T0 认知基准', desc: '战役开始前（T0 时刻）AI 对每个问题的「当前认知快照」，作为后续优化效果的对比基线。' },
+          { term: '层级 (Tier)', desc: 'category = 品类级问题（AI 是否理解该品类、是否提到 ST）；sub_node = 具体子话题的空白。' },
+          { term: '空白 (Void)', desc: 'ST 在 AI 答案中缺失或弱势的程度。档位由弱到强：none → small → medium → large → critical。' },
+          { term: '严重度 (Severity)', desc: '空白档位后括号内的数字，1–10 分，越大越严重。例：large (7) = 大空白，严重度 7/10。' },
+          { term: 'ST 绑定', desc: 'AI 回答中主动提及并推荐 ST 的强度：none / weak / strong。' },
+        ],
+        intentHint: '括号内数字 = 该分组包含的探测问题数。',
+        voidHint: '「空白」列格式为「档位 (严重度1–10)」：档位 none→critical 由弱到强，数字越大问题越严重。层级 category = 品类级，sub_node = 子节点级。',
+      },
     },
     diagnosis: {
       title: '意图诊断 (Interception)',
@@ -327,6 +341,20 @@ export const translations = {
       tableTooltipSt: 'Self-mention / brand binding strength',
       tableTooltipVoid: 'Semantic void size (severity)',
       tableTooltipTier: 'Question tier: category or sub-node',
+      guide: {
+        toggle: 'What do these terms mean?',
+        intro: 'This is a GEO (Generative Engine Optimization) campaign planner: enter a topic → AI simulates how large models answer related questions (probes) → it finds the "cognitive voids" where your brand is missing from AI answers → it auto-generates an actionable Brief and Playbooks.',
+        terms: [
+          { term: 'Intent group', desc: 'Seed questions clustered by user intent. The number in parentheses after the label = how many questions are in that group, e.g. (3) means 3 questions.' },
+          { term: 'T0 cognitive baseline', desc: 'A snapshot of how AI answers each question before the campaign starts (time T0). It is the baseline you measure later improvement against.' },
+          { term: 'Tier', desc: 'category = category-level question (does AI understand the category and mention ST?); sub_node = a void on a specific sub-topic.' },
+          { term: 'Void', desc: 'How absent or weak ST is in the AI answer. Buckets from weak to severe: none → small → medium → large → critical.' },
+          { term: 'Severity', desc: 'The number in parentheses after the void bucket, scored 1–10; higher is worse. e.g. large (7) = a large void at severity 7/10.' },
+          { term: 'ST binding', desc: 'How strongly the AI answer actively mentions and recommends ST: none / weak / strong.' },
+        ],
+        intentHint: 'The number in parentheses = how many probe questions are in that group.',
+        voidHint: 'The "Void" column reads "bucket (severity 1–10)": buckets go none→critical (weak to severe), and a higher number is worse. Tier: category = category-level, sub_node = sub-node level.',
+      },
     },
     diagnosis: {
       title: 'Diagnosis (Interception)',
@@ -581,6 +609,20 @@ export const translations = {
       tableTooltipSt: 'Self-mention / ブランド言及強度',
       tableTooltipVoid: 'Semantic void size (severity) / 意味的空白の大きさ',
       tableTooltipTier: 'Question tier: category or sub-node',
+      guide: {
+        toggle: '用語の説明・この画面の読み方',
+        intro: 'これは GEO（生成エンジン最適化）のキャンペーン設計ツールです：テーマを入力 → AI が大規模モデルの回答をシミュレート（プローブ）→ 自社ブランドが AI の回答から欠落している「認知の空白」を発見 → 実行可能な Brief と Playbook を自動生成します。',
+        terms: [
+          { term: '意図グループ', desc: 'シード質問を意図ごとにクラスタリング。ラベル後の括弧内の数字 = そのグループに含まれる質問数。例：(3) は質問 3 件。' },
+          { term: 'T0 認知ベースライン', desc: 'キャンペーン開始前（T0 時点）に AI が各質問にどう答えるかのスナップショット。後の改善効果を測る基準です。' },
+          { term: '層 (Tier)', desc: 'category = カテゴリレベルの質問（AI がカテゴリを理解し ST に言及するか）；sub_node = 特定サブトピックの空白。' },
+          { term: '空白 (Void)', desc: 'AI の回答で ST がどれだけ欠落・弱いか。弱→強：none → small → medium → large → critical。' },
+          { term: '深刻度 (Severity)', desc: '空白区分の後の括弧内の数字。1–10 点で大きいほど深刻。例：large (7) = 大きな空白、深刻度 7/10。' },
+          { term: 'ST バインディング', desc: 'AI の回答が ST を能動的に言及・推奨する強さ：none / weak / strong。' },
+        ],
+        intentHint: '括弧内の数字 = そのグループに含まれるプローブ質問数。',
+        voidHint: '「空白」列は「区分 (深刻度1–10)」形式：区分は none→critical（弱→強）、数字が大きいほど深刻。層：category = カテゴリレベル、sub_node = サブノードレベル。',
+      },
     },
     diagnosis: {
       title: '意図診断',

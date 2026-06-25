@@ -4,7 +4,7 @@ import { runCampaignPipeline } from '../services/campaignPipeline';
 import type { CampaignPipelineProgress } from '../types/campaign';
 import type { TranslationKeys } from '../i18n/translations';
 import PipelineStageIndicator from './PipelineStageIndicator';
-import { Loader2, Search, ChevronRight, AlertCircle, Target, Layers } from 'lucide-react';
+import { Loader2, Search, ChevronRight, AlertCircle, Target, Layers, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 
 const toDisplayText = (value: unknown): string => {
   if (typeof value === 'string') return value;
@@ -93,6 +93,7 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<CampaignPipelineProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   const handleRun = async () => {
     if (!topic.trim()) return;
@@ -138,6 +139,31 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-24 max-w-7xl mx-auto">
+      <div className="bg-[#03234b] rounded-2xl shadow-xl border border-[#03234b] overflow-hidden">
+        <button
+          onClick={() => setShowGuide(s => !s)}
+          className="w-full px-6 py-4 flex items-center justify-between text-left text-white hover:bg-white/5"
+        >
+          <span className="flex items-center gap-2.5 text-[13px] font-bold">
+            <BookOpen className="w-4 h-4 text-[#ffd200]" /> {c.guide.toggle}
+          </span>
+          {showGuide ? <ChevronUp className="w-4 h-4 text-white/60" /> : <ChevronDown className="w-4 h-4 text-white/60" />}
+        </button>
+        {showGuide && (
+          <div className="px-6 pb-6 pt-1 border-t border-white/10">
+            <p className="text-[13px] text-white/80 leading-relaxed mb-4">{c.guide.intro}</p>
+            <dl className="space-y-2.5">
+              {c.guide.terms.map((it) => (
+                <div key={it.term} className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3">
+                  <dt className="text-[12px] font-bold text-[#3cb4e6] flex-shrink-0">{it.term}</dt>
+                  <dd className="text-[12px] text-white/70 leading-relaxed">{it.desc}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+      </div>
+
       <div className="bg-white rounded-2xl p-8 shadow-xl border border-slate-100">
         <h2 className="text-2xl u-page-title text-[#03234b] flex items-center gap-3">
           <Target className="w-6 h-6 text-[#3cb4e6]" /> {c.discoveryTitle}
@@ -234,9 +260,10 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
           {groups.length > 0 && (
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100">
-              <h3 className="text-sm font-bold text-[#03234b] mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-[#03234b] mb-1 flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#ffd200]" /> {c.intentGroupsTitle}
               </h3>
+              <p className="text-[11px] text-slate-400 mb-4">{c.guide.intentHint}</p>
               <div className="flex flex-wrap gap-2">
                 {groups.map(g => (
                   <span key={g.id} className="px-3 py-1.5 bg-[#3cb4e6]/10 text-[#03234b] text-[13px] font-bold rounded-full border border-[#3cb4e6]/20">
@@ -270,7 +297,19 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                         <td className="p-3 font-medium text-[#03234b] max-w-xs leading-relaxed">{p.questionText}</td>
                         <td className="p-3 text-[#5f6f85]">{tier}</td>
                         <td className="p-3">{p.gemini.stBindingStrength}</td>
-                        <td className="p-3">{p.gemini.voidSize} ({p.gemini.voidSeverity})</td>
+                        <td className="p-3">
+                          <span
+                            className="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold text-white"
+                            style={{
+                              backgroundColor:
+                                p.gemini.voidSeverity >= 7 ? '#ef4444'
+                                : p.gemini.voidSeverity >= 5 ? '#f59e0b'
+                                : p.gemini.voidSeverity >= 3 ? '#3cb4e6' : '#10b981',
+                            }}
+                          >
+                            {p.gemini.voidSize} ({p.gemini.voidSeverity})
+                          </span>
+                        </td>
                         <td className="p-3 text-[#5f6f85]">{p.gemini.dominantCompetitors.slice(0, 3).join(', ')}</td>
                       </tr>
                     );
@@ -278,6 +317,7 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                 </tbody>
               </table>
             </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed px-6 py-3 bg-slate-50 border-t border-slate-100">{c.guide.voidHint}</p>
           </div>
 
           <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 pr-20 sm:pr-0">
