@@ -60,6 +60,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const [isReprobing, setIsReprobing] = useState(false);
   const [expandedIg, setExpandedIg] = useState<string | null>(null);
   const [showCompetitors, setShowCompetitors] = useState(true);
+  const [showStDetail, setShowStDetail] = useState(false);
 
   if (!campaign || !syn) {
     return (
@@ -84,6 +85,26 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const criticalVoids = baseline.filter(
     p => p.gemini?.voidSize === 'critical' || p.gemini?.voidSize === 'large',
   ).length;
+  // Per-question ST visibility. The headline 28.6% is GEMINI-ONLY
+  // (stMentions/probeCount); this surfaces WHICH questions, and where the real
+  // China-local probes ran, how many of those 4 models actually named ST.
+  const ST_ALIAS = /意法半导体|意法|st\s*microelectronics|\bst[- ]?micro\b|(^|[^a-zA-Z])st([^a-zA-Z]|$)/i;
+  const cnMentionsST = (s: { rawResponse?: string; keyEntities?: string[]; error?: string }) =>
+    !s.error && ST_ALIAS.test(`${s.rawResponse || ''} ${(s.keyEntities || []).join(' ')}`);
+  const stBreakdown = baseline.map(p => {
+    const snaps = (p.multiModel?.snapshots || []).filter(s => !s.error);
+    return {
+      id: p.id,
+      question: p.questionText,
+      gemini: !!p.gemini?.stMentioned,
+      cnTotal: snaps.length,
+      cnHit: snaps.filter(cnMentionsST).length,
+    };
+  });
+  const cnAnyProbed = stBreakdown.some(b => b.cnTotal > 0);
+  const cnStTotal = stBreakdown.reduce((s, b) => s + b.cnTotal, 0);
+  const cnStHit = stBreakdown.reduce((s, b) => s + b.cnHit, 0);
+  const cnStRatePct = cnStTotal ? Math.round((cnStHit / cnStTotal) * 100) : 0;
   const competitorFreq = (() => {
     const m = new Map<string, number>();
     for (const p of baseline) {
@@ -230,6 +251,62 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
             </div>
           );
         })()}
+
+        {probeCount > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-lg overflow-hidden">
+            <button
+              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50"
+              onClick={() => setShowStDetail(s => !s)}
+            >
+              <div>
+                <h3 className="text-sm font-bold text-[#03234b] flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-[#3cb4e6]" /> {c.stVisibilityTitle}
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {c.stVisibilityGemini}: {stMentions}/{probeCount}
+                  {cnAnyProbed && <> · {c.stVisibilityCn}: {cnStHit}/{cnStTotal} ({cnStRatePct}%)</>}
+                  {!cnAnyProbed && <> · {c.stVisibilityCnPending}</>}
+                </p>
+              </div>
+              {showStDetail ? <ChevronUp className="w-5 h-5 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 flex-shrink-0" />}
+            </button>
+            {showStDetail && (
+              <div className="border-t border-slate-100 overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="bg-slate-50 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="px-6 py-2.5">{c.stVisibilityQuestion}</th>
+                      <th className="px-3 py-2.5 text-center">Gemini</th>
+                      <th className="px-3 py-2.5 text-center">{c.stVisibilityCn}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stBreakdown.map(b => (
+                      <tr key={b.id} className="border-t border-slate-50">
+                        <td className="px-6 py-2.5 text-[#03234b] max-w-md">{b.question}</td>
+                        <td className="px-3 py-2.5 text-center">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold text-white ${b.gemini ? 'bg-emerald-500' : 'bg-rose-400'}`}>
+                            {b.gemini ? c.stVisibilityYes : c.stVisibilityNo}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          {b.cnTotal > 0 ? (
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${b.cnHit > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
+                              {b.cnHit}/{b.cnTotal}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-[11px] text-slate-400 px-6 py-3 bg-slate-50/60">{c.stVisibilityNote}</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {strategicReport?.executiveSummary && (
           <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
