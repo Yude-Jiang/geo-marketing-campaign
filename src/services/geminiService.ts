@@ -384,67 +384,55 @@ TASK: Generate a GEO Marketing Campaign Report in TWO formats:
 OUTPUT LANGUAGE: ${langDisplayName(c.uiLang)} only — every heading, label and sentence in this language.
 
 CRITICAL QUALITY RULES:
-- SCANNABILITY FIRST: an executive must grasp the situation in 30 seconds. Lead with conclusions, then evidence. Prefer bullets, cards, tables and visual indicators over paragraphs. NO walls of text.
-- BREVITY: every bullet ≤ 25 words. Never write 3 sentences where 1 sharp bullet works. Cut adjectives and filler; keep numbers, causality and the action.
-- VISUAL HIERARCHY: use the styled cards/tables/timeline structure for emphasis. Put the single most important number or risk in large/bold form per section.
-- Open the report with a "Strategic Thesis" (one-sentence bet + 3 supports), NOT a scattered takeaways list.
-- DATA INTEGRITY (highest priority): the header 档案编号, 情报来源/模型名, and 报告日期 MUST be the exact archiveId / groundingModel / reportDate values from REPORT METADATA. NEVER invent an archive number, model version (e.g. do not write "Gemini 1.5 Pro" or any version you were not given), or date.
-- DEGRADED SYNTHESIS: if synthesisDegraded is true, the campaign synthesis failed to parse and most sections are empty. Render a prominent red warning banner at the very top ("⚠ 本报告合成数据不完整 — synthesis 解析失败,请重跑") and do NOT fabricate brief/intent/playbook content to fill the gaps.
-- NO FABRICATION: every model-specific claim, competitor corpus-advantage claim, and metric must trace to provided probe/snapshot data. If data is absent, state "数据缺失/待补充" — never speculate to fill a section.
-- PROVENANCE SEPARATION: Gemini simulation and real CN multi-model probes are DIFFERENT confidence tiers. Never label Gemini's own output as cross-model "evidence". Follow the FOUR-LLM SECTION directive in DATA exactly.
-- METRIC RECONCILIATION: if a probe shows ST binding=none/weak but voidSeverity is near 0, flag it as a scoring anomaly ("指标待复核") instead of writing narrative that contradicts the number.
-- INTERNAL IDS: playbook/question/intent ids (pb-/q-/ig-) are internal refs; if shown, render as small muted footnote-style tags, never inline in executive prose.
-- Must explicitly include Gemini simulation executive evidence; include four-LLM comparison ONLY per the FOUR-LLM SECTION directive.
-- Must explicitly include competitor diagnosis (threat matrix + why competitor wins + interception plan).
-- Every major claim must map to concrete probe evidence.
+- SCANNABILITY FIRST: a marketer must be able to execute from this in one read. Prefer the timeline, asset table and checklist over prose. NO walls of text, NO analysis essays.
+- BREVITY: every chip / row / checklist item ≤ 15 words, verb-first where possible.
+- VISUAL HIERARCHY: the timeline is the centrepiece; assets and checklist support it.
+- DATA INTEGRITY (highest priority): the header 档案编号, 情报来源/模型名, and 报告日期 MUST be the exact archiveId / groundingModel / reportDate values from REPORT METADATA. NEVER invent an archive number, model version, or date.
+- DEGRADED SYNTHESIS: if synthesisDegraded is true, the synthesis failed to parse; render a red warning banner at the top ("⚠ 本报告合成数据不完整 — synthesis 解析失败,请重跑") and do NOT fabricate timeline/asset content to fill gaps.
+- NO FABRICATION: every timeline chip, asset and checklist item must trace to a playbook, brief.timeline phase, or channelMixSuggestion. If absent, omit it — never invent KPIs, dates, exposure counts, or analysis.
+- INTERNAL IDS: playbook/question/intent ids (pb-/q-/ig-) are internal refs — never show them in the report.
 
-OUTPUT STRUCTURE — INVERTED PYRAMID. The BODY is executive (1–2 screens, decisions first). All granular evidence goes into a collapsed APPENDIX using <details><summary>…</summary>…</details>. Internal IDs (pb-/q-/ig-/T1/T2) and Q1–Q8 labels are FORBIDDEN in the body (appendix only).
+THIS REPORT IS AN EXECUTION PLAN, NOT AN ANALYSIS. ALL analysis, insight, competitor diagnosis, intent diagnosis, KPI scorecards and cross-model (Gemini + DeepSeek/Qwen/Doubao/Kimi) findings live in the Step 2 Blueprint UI — DO NOT repeat or re-derive them here, and DO NOT invent KPI targets, exposure counts or "≈ N times" numbers. This document is purely what the team executes: a dated timeline, the content assets to produce, and a checklist. Everything must map to the synthesis (brief.timeline, playbooks, channelMixSuggestion) — no invented data.
 
-BODY (executive — use these section labels exactly):
-1) <div class="sec-label">Strategic Thesis</div>
-   - One sentence: "We are betting that …" + exactly 3 supporting bullets. Replaces a scattered takeaways list.
-2) <div class="sec-label">Executive Scorecard</div>
-   - 3–4 core metrics as cards, each baseline→target WITH a business translation. NEVER show a naked GEO vanity metric: translate every KPI to business meaning (e.g. "AI 提及率 16.5% → 60% ≈ 每季度约 N 次 AI 选型曝光"; "锚点验证率 → 被 AI 正确引用的产品事实数"). No invented web-traffic/lead numbers.
-3) <div class="sec-label">90 / 180-Day Roadmap</div>
-   - Render the .roadmap component (skeleton below). DO NOT use a <table> for the timeline.
-4) <div class="sec-label">The Ask</div>
-   - What leadership must approve: budget/resource tier + the blockers to unlock (e.g. STM32 C5 enablement). 3–5 decision bullets.
-5) <div class="sec-label">Competitor Diagnosis Matrix</div>
-   - Render the persisted COMPETITOR BATTLE CARDS verbatim — one row/card per competitor: name, threatTier, SOV%, corpusAdvantage (why AI prefers them), weakSpot, interceptionPlay, and crossModelValidation when present. Do NOT re-invent. Fall back to COMPETITOR DIAGNOSIS SEED only if no battle cards.
+OUTPUT ONLY THESE SECTIONS (use these labels exactly):
+1) <div class="sec-label">Campaign Timeline</div>
+   - Render the .exec-timeline component (skeleton below): TWO tracks — 内容资产 / Content Assets (what to create) and 推广 / Promotion (how to push it) — across the campaign duration (${c.duration}). Split into 3 phases scaled to the duration (e.g. 90d → Day 0–30 / 30–60 / 60–90; 180d → 0–60 / 60–120 / 120–180). Each chip is a concrete dated deliverable tied to a REAL channel (for a China campaign: 微信服务号 / 知乎 / B站 / 中文论坛 / 百度 / Bing / EDM; global: blog / YouTube / LinkedIn / Google / Bing / EDM). Derive items from the playbooks and brief.timeline.
+2) <div class="sec-label">Content & Assets</div>
+   - A table: Asset | Type | Channel | Owner | Phase. One row per concrete deliverable derived from the playbooks (geoAction / contentPlatform / tacticsType) and brief — e.g. "STM32C5 知乎技术长文", "B站 评测视频", "微信服务号 推文", "百度品牌专区 落地页", "第三方 EDM". Owner = a role (Content / FAE / Digital / PR), not a person's name.
+3) <div class="sec-label">Execution Checklist</div>
+   - Actionable checklist grouped by the 3 phases; each item = a verb-first task + owner role + the asset/channel it belongs to. These are things someone ticks off.
 
-APPENDIX (wrap EACH in <details>, collapsed):
-6) <details><summary>Per-Question Evidence (Gemini + Four-LLM)</summary> … </details>
-   - ONE merged block per question: Gemini simulation AND the Four-LLM cross-model evidence together (never Gemini once then Four-LLM again). Follow the FOUR-LLM SECTION directive for provenance; if no real CN data, render the single status card and stop.
-7) <details><summary>GEO Cognitive Baseline Table</summary> … </details>
-8) <details><summary>Intent Deep-Dive</summary> … </details> — per intent: metrics + 1-line root cause + 1-line repair + linked playbook tags.
-9) <details><summary>Playbook Deployment Board</summary> … </details>
-10) <details><summary>Innovation Lab</summary> … </details>
-11) <details><summary>Execution Checklist</summary> … </details>
-
-.roadmap COMPONENT — fill this EXACT skeleton in %%HTML_BODY%% (fixed class names, no <table>, no runtime SVG):
-<div class="roadmap">
-  <div class="roadmap-arc">
-    <div class="roadmap-metric">AI 提及率 <b>{baseline}%</b> → <b>{target}%</b></div>
-    <div class="roadmap-track">
-      <span class="rm-dot" style="left:0%"><i></i><em>Day 0</em></span>
-      <span class="rm-dot" style="left:33%"><i></i><em>Day 30</em></span>
-      <span class="rm-dot" style="left:66%"><i></i><em>Day 90</em></span>
-      <span class="rm-dot" style="left:100%"><i></i><em>Day 180</em></span>
+.exec-timeline COMPONENT — fill this EXACT skeleton in %%HTML_BODY%% (fixed class names, no <table> for the timeline, no runtime SVG). 3 phase columns; put 2–4 <span class="etl-item"> chips per cell:
+<div class="exec-timeline">
+  <div class="etl-axis">
+    <span class="etl-phase">{Phase 1 label · day range}</span>
+    <span class="etl-phase">{Phase 2 label · day range}</span>
+    <span class="etl-phase">{Phase 3 label · day range}</span>
+  </div>
+  <div class="etl-track assets">
+    <div class="etl-track-label">内容资产</div>
+    <div class="etl-cells">
+      <div class="etl-cell"><span class="etl-item">{asset}</span><span class="etl-item">{asset}</span></div>
+      <div class="etl-cell"><span class="etl-item">{asset}</span></div>
+      <div class="etl-cell"><span class="etl-item">{asset}</span></div>
     </div>
   </div>
-  <div class="roadmap-phases">
-    <div class="phase"><div class="phase-name">{phase name}</div><div class="phase-do">{key action}</div><div class="phase-kpi">{KPI target}</div></div>
-    <div class="phase">…</div>
-    <div class="phase">…</div>
+  <div class="etl-track promo">
+    <div class="etl-track-label">推广</div>
+    <div class="etl-cells">
+      <div class="etl-cell"><span class="etl-item">{channel push}</span></div>
+      <div class="etl-cell"><span class="etl-item">{channel push}</span><span class="etl-item">{channel push}</span></div>
+      <div class="etl-cell"><span class="etl-item">{channel push}</span></div>
+    </div>
   </div>
 </div>
 
 HARD RULES:
-- Every KPI carries a business translation; no naked GEO vanity numbers in the body.
-- Internal IDs (pb-/q-/ig-/T1/T2) and Q1–Q8 labels: appendix only, never in the body.
-- Body ≤ ~2 screens; push all granular per-question evidence into the <details> appendix; do NOT repeat a question's evidence in both body and appendix.
-- Keep the OUTPUT CONTRACT: output STARTS with %%MD_START%% (no preamble/prose before it); both marker pairs (MD + HTML_BODY) opened and closed; no text after %%HTML_BODY_END%%.
-- Avoid fluff; every line carries a number, a cause, or an action.
+- NO analysis, NO scorecard, NO competitor matrix, NO intent/evidence, NO KPI targets, NO invented numbers. If tempted to explain "why", stop — that belongs in Step 2.
+- Every timeline chip, asset row and checklist item must trace to a playbook, a brief.timeline phase, or channelMixSuggestion. If the synthesis lacks it, omit it — do not fabricate.
+- Owners are roles (Content / FAE / Digital / PR / Web), never invented names.
+- Keep the OUTPUT CONTRACT: output STARTS with %%MD_START%% (no preamble); both marker pairs (MD + HTML_BODY) opened and closed; no text after %%HTML_BODY_END%%.
+- The MD block (%%MD_START%%…%%MD_END%%) mirrors the same 3 sections in plain markdown (timeline as a phase list, assets as a table, checklist as - [ ] items).
 
 DATA:
 ${data}`;

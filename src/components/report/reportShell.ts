@@ -269,27 +269,23 @@ footer{
   .card-grid.cols-2,.card-grid.cols-3{grid-template-columns:1fr}
   .hero h1{font-size:22px}
   .page{padding:24px 16px 60px}
-  .roadmap-phases{grid-template-columns:1fr}
+  .etl-cells{grid-template-columns:1fr}
+  .etl-axis{display:none}
 }
-/* ── ROADMAP (replaces the timeline table) ── */
-.roadmap{margin:14px 0 8px}
-.roadmap-arc{position:relative;padding:8px 8px 0}
-.roadmap-metric{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px}
-.roadmap-metric b{color:var(--blue)}
-.roadmap-track{position:relative;height:84px}
-.roadmap-track::before{content:'';position:absolute;left:2%;right:2%;bottom:18px;height:3px;border-radius:2px;background:linear-gradient(90deg,#cbd5e1,#3cb4e6);transform:skewY(-7deg);transform-origin:left center}
-.rm-dot{position:absolute;transform:translateX(-50%);text-align:center}
-.rm-dot:nth-child(1){bottom:8px}
-.rm-dot:nth-child(2){bottom:26px}
-.rm-dot:nth-child(3){bottom:46px}
-.rm-dot:nth-child(4){bottom:64px}
-.rm-dot i{display:block;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--blue);margin:0 auto;box-shadow:0 1px 5px rgba(3,35,75,.18)}
-.rm-dot em{display:block;font-style:normal;font-size:10px;font-weight:700;color:var(--muted);margin-top:4px;white-space:nowrap}
-.roadmap-phases{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
-.phase{position:relative;background:#f8fafc;border:1px solid #e8edf3;border-radius:14px;padding:14px 14px 12px;border-top:3px solid var(--blue)}
-.phase-name{font-weight:800;color:var(--navy);font-size:13px;margin-bottom:6px}
-.phase-do{font-size:12px;color:#475569;line-height:1.55}
-.phase-kpi{margin-top:9px;font-size:11px;font-weight:700;color:var(--blue);background:rgba(60,180,230,.1);padding:4px 9px;border-radius:8px;display:inline-block}
+/* ── EXECUTION TIMELINE (2 tracks: Content Assets / Promotion) ── */
+.exec-timeline{margin:14px 0 8px;border:1px solid #e8edf3;border-radius:14px;overflow:hidden}
+.etl-axis{display:grid;grid-template-columns:repeat(3,1fr);margin-left:96px;background:var(--navy)}
+.etl-phase{padding:9px 12px;color:#fff;font-size:11px;font-weight:800;letter-spacing:.02em;border-left:1px solid rgba(255,255,255,.14)}
+.etl-phase:first-child{border-left:none}
+.etl-track{display:grid;grid-template-columns:96px 1fr;border-top:1px solid #e8edf3}
+.etl-track-label{display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;font-weight:800;color:#fff;padding:10px 6px;line-height:1.3}
+.etl-track.assets .etl-track-label{background:#1f4e79}
+.etl-track.promo .etl-track-label{background:#5b6b80}
+.etl-cells{display:grid;grid-template-columns:repeat(3,1fr)}
+.etl-cell{padding:10px;border-left:1px solid #eef2f7;display:flex;flex-direction:column;gap:6px;align-content:flex-start}
+.etl-cell:first-child{border-left:none}
+.etl-item{display:block;font-size:11px;font-weight:600;line-height:1.35;padding:5px 9px;border-radius:8px;background:#eef6fb;color:var(--navy);border:1px solid #d6e9f5}
+.etl-track.promo .etl-item{background:#fff7da;border-color:#ffe699;color:#7a5b00}
 /* ── APPENDIX (collapsed details) ── */
 details{margin:10px 0;border:1px solid #e8edf3;border-radius:12px;background:#fff;overflow:hidden}
 details>summary{cursor:pointer;list-style:none;padding:12px 16px;font-weight:700;font-size:13px;color:var(--navy);background:#f8fafc}
