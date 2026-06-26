@@ -105,6 +105,30 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const cnStTotal = stBreakdown.reduce((s, b) => s + b.cnTotal, 0);
   const cnStHit = stBreakdown.reduce((s, b) => s + b.cnHit, 0);
   const cnStRatePct = cnStTotal ? Math.round((cnStHit / cnStTotal) * 100) : 0;
+  // Weighted ST binding rate when real CN probes ran: blend Gemini with the 4
+  // local models, local-heavy (80% total) and Doubao weighted most (40%).
+  // Per question, renormalize over the models that actually responded.
+  const MODEL_WEIGHTS: Record<string, number> = {
+    gemini: 0.20, doubao: 0.40, deepseek: 0.40 / 3, qwen: 0.40 / 3, kimi: 0.40 / 3,
+  };
+  const weightedStRatePct = (() => {
+    if (!probeCount) return 0;
+    const perQ = baseline.map(p => {
+      const voters: { w: number; hit: boolean }[] = [
+        { w: MODEL_WEIGHTS.gemini, hit: !!p.gemini?.stMentioned },
+      ];
+      for (const s of p.multiModel?.snapshots || []) {
+        if (s.error) continue;
+        const w = MODEL_WEIGHTS[s.modelId];
+        if (w != null) voters.push({ w, hit: cnMentionsST(s) });
+      }
+      const wsum = voters.reduce((a, v) => a + v.w, 0);
+      const hsum = voters.reduce((a, v) => a + (v.hit ? v.w : 0), 0);
+      return wsum ? hsum / wsum : 0;
+    });
+    return Math.round((perQ.reduce((a, b) => a + b, 0) / probeCount) * 100);
+  })();
+  const stRateDisplay = cnAnyProbed ? weightedStRatePct : stRatePct;
   const competitorFreq = (() => {
     const m = new Map<string, number>();
     for (const p of baseline) {
@@ -231,7 +255,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
         {(() => {
           const d = DASH_LABELS[uiLang] ?? DASH_LABELS.en;
           const cards = [
-            { icon: ShieldCheck, label: d.st, value: `${stRatePct}%`, sub: `${stMentions} ${d.of} ${probeCount} ${d.questions}`, color: stRatePct >= 50 ? '#10b981' : stRatePct >= 25 ? '#f59e0b' : '#ef4444' },
+            { icon: ShieldCheck, label: d.st, value: `${stRateDisplay}%`, sub: cnAnyProbed ? `${c.stWeighted} · Gemini ${stRatePct}%` : `${stMentions} ${d.of} ${probeCount} ${d.questions}`, color: stRateDisplay >= 50 ? '#10b981' : stRateDisplay >= 25 ? '#f59e0b' : '#ef4444' },
             { icon: Gauge, label: d.void, value: avgVoidSeverity.toFixed(1), sub: '/ 10', color: severityColor(avgVoidSeverity) },
             { icon: AlertTriangle, label: d.critical, value: String(criticalVoids), sub: `${d.of} ${probeCount}`, color: criticalVoids > 0 ? '#ef4444' : '#10b981' },
             { icon: Users, label: d.competitors, value: String(competitorSet.size), sub: [...competitorSet].slice(0, 2).join(', '), color: '#03234b' },
@@ -263,7 +287,8 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                   <ShieldCheck className="w-4 h-4 text-[#3cb4e6]" /> {c.stVisibilityTitle}
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  {c.stVisibilityGemini}: {stMentions}/{probeCount}
+                  {cnAnyProbed && <><strong className="text-[#03234b]">{c.stWeighted} {weightedStRatePct}%</strong> · </>}
+                  {c.stVisibilityGemini}: {stMentions}/{probeCount} ({stRatePct}%)
                   {cnAnyProbed && <> · {c.stVisibilityCn}: {cnStHit}/{cnStTotal} ({cnStRatePct}%)</>}
                   {!cnAnyProbed && <> · {c.stVisibilityCnPending}</>}
                 </p>
@@ -302,7 +327,7 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                     ))}
                   </tbody>
                 </table>
-                <p className="text-[11px] text-slate-400 px-6 py-3 bg-slate-50/60">{c.stVisibilityNote}</p>
+                <p className="text-[11px] text-slate-400 px-6 py-3 bg-slate-50/60">{cnAnyProbed ? c.stWeightNote : c.stVisibilityNote}</p>
               </div>
             )}
           </div>
