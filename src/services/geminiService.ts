@@ -395,47 +395,67 @@ CRITICAL QUALITY RULES:
 - NO FABRICATION: every timeline chip, asset and checklist item must trace to a playbook, brief.timeline phase, or channelMixSuggestion. If absent, omit it — never invent KPIs, dates, exposure counts, or analysis.
 - INTERNAL IDS: playbook/question/intent ids (pb-/q-/ig-) are internal refs — never show them in the report.
 
-THIS REPORT IS AN EXECUTION PLAN, NOT AN ANALYSIS. ALL analysis, insight, competitor diagnosis, intent diagnosis, KPI scorecards and cross-model (Gemini + DeepSeek/Qwen/Doubao/Kimi) findings live in the Step 2 Blueprint UI — DO NOT repeat or re-derive them here, and DO NOT invent KPI targets, exposure counts or "≈ N times" numbers. This document is purely what the team executes: a dated timeline, the content assets to produce, and a checklist. Everything must map to the synthesis (brief.timeline, playbooks, channelMixSuggestion) — no invented data.
+THE %%HTML_BODY%% IS A SLIDE DECK — a "Campaign Proposal" presentation following the STMicroelectronics brand. It is an EXECUTION PLAN, not an analysis: all analysis, KPIs, competitor and cross-model findings live in the Step 2 Blueprint — DO NOT put them in the slides, and DO NOT invent KPI numbers, dates or exposure counts. Everything maps to the synthesis (brief.timeline, playbooks, channelMixSuggestion).
 
-OUTPUT ONLY THESE SECTIONS (use these labels exactly):
-1) <div class="sec-label">Campaign Timeline</div>
-   - Render the .exec-timeline component (skeleton below): TWO tracks — 内容资产 / Content Assets (what to create) and 推广 / Promotion (how to push it) — across the campaign duration (${c.duration}). Split into 3 phases scaled to the duration (e.g. 90d → Day 0–30 / 30–60 / 60–90; 180d → 0–60 / 60–120 / 120–180). Each chip is a concrete dated deliverable tied to a REAL channel (for a China campaign: 微信服务号 / 知乎 / B站 / 中文论坛 / 百度 / Bing / EDM; global: blog / YouTube / LinkedIn / Google / Bing / EDM). Derive items from the playbooks and brief.timeline.
-2) <div class="sec-label">Content & Assets</div>
-   - A table: Asset | Type | Channel | Owner | Phase. One row per concrete deliverable derived from the playbooks (geoAction / contentPlatform / tacticsType) and brief — e.g. "STM32C5 知乎技术长文", "B站 评测视频", "微信服务号 推文", "百度品牌专区 落地页", "第三方 EDM". Owner = a role (Content / FAE / Digital / PR), not a person's name.
-3) <div class="sec-label">Execution Checklist</div>
-   - Actionable checklist grouped by the 3 phases; each item = a verb-first task + owner role + the asset/channel it belongs to. These are things someone ticks off.
+ST BRAND RULES (mandatory):
+- Palette: ST Dark Blue #03234B (titles, dark bars), ST Yellow #FFD200 (ONE highlight / card headers — ALWAYS dark-blue text on yellow, NEVER white), ST Light Blue #3CB4E6 (message bars / supporting). Max 2–3 colours per slide.
+- Every content slide has a Title Only header (.slide-title) AND one key message bar (.msg-bar = the single thing to remember).
+- Minimal text, strong structure. No analysis prose.
 
-.exec-timeline COMPONENT — fill this EXACT skeleton in %%HTML_BODY%% (fixed class names, no <table> for the timeline, no runtime SVG). 3 phase columns; put 2–4 <span class="etl-item"> chips per cell:
-<div class="exec-timeline">
-  <div class="etl-axis">
-    <span class="etl-phase">{Phase 1 label · day range}</span>
-    <span class="etl-phase">{Phase 2 label · day range}</span>
-    <span class="etl-phase">{Phase 3 label · day range}</span>
-  </div>
-  <div class="etl-track assets">
-    <div class="etl-track-label">内容资产</div>
-    <div class="etl-cells">
-      <div class="etl-cell"><span class="etl-item">{asset}</span><span class="etl-item">{asset}</span></div>
-      <div class="etl-cell"><span class="etl-item">{asset}</span></div>
-      <div class="etl-cell"><span class="etl-item">{asset}</span></div>
+%%HTML_BODY%% = a sequence of <section class="slide"> blocks. Use these EXACT classes (the stylesheet already styles them — do not add <style>, no SmartArt, no <table> for the timeline):
+
+SLIDE 1 — Title:
+<section class="slide slide--title">
+  <div class="kicker">Campaign Proposal</div>
+  <h1>{campaign topic}</h1>
+  <div class="subtitle">{region · ${c.duration} · ${c.uiLang === 'zh' ? '提案日期' : 'date'} ${reportDate}}</div>
+  <div class="st-mark">ST</div>
+</section>
+
+SLIDE 2 — Campaign Timeline (archetype: content/promotion lanes). Split the duration (${c.duration}) into 3 phases (e.g. 90d → Day 0–30 / 30–60 / 60–90). 2–4 chips per cell, each a concrete deliverable on a REAL channel (China: 微信服务号 / 知乎 / B站 / 中文论坛 / 百度 / Bing / EDM; global: blog / YouTube / LinkedIn / Google / Bing / EDM):
+<section class="slide">
+  <div class="slide-title">Campaign Timeline</div>
+  <div class="msg-bar msg-bar--navy">{the one launch-sequence takeaway}</div>
+  <div class="slide-body">
+    <div class="exec-timeline">
+      <div class="etl-axis"><span class="etl-phase">{Phase 1 · days}</span><span class="etl-phase">{Phase 2 · days}</span><span class="etl-phase">{Phase 3 · days}</span></div>
+      <div class="etl-track assets"><div class="etl-track-label">内容资产 Content</div><div class="etl-cells"><div class="etl-cell"><span class="etl-item">{asset}</span></div><div class="etl-cell"><span class="etl-item">{asset}</span></div><div class="etl-cell"><span class="etl-item">{asset}</span></div></div></div>
+      <div class="etl-track promo"><div class="etl-track-label">推广 Promotion</div><div class="etl-cells"><div class="etl-cell"><span class="etl-item">{push}</span></div><div class="etl-cell"><span class="etl-item">{push}</span></div><div class="etl-cell"><span class="etl-item">{push}</span></div></div></div>
     </div>
   </div>
-  <div class="etl-track promo">
-    <div class="etl-track-label">推广</div>
-    <div class="etl-cells">
-      <div class="etl-cell"><span class="etl-item">{channel push}</span></div>
-      <div class="etl-cell"><span class="etl-item">{channel push}</span><span class="etl-item">{channel push}</span></div>
-      <div class="etl-cell"><span class="etl-item">{channel push}</span></div>
-    </div>
-  </div>
-</div>
+</section>
 
-HARD RULES:
-- NO analysis, NO scorecard, NO competitor matrix, NO intent/evidence, NO KPI targets, NO invented numbers. If tempted to explain "why", stop — that belongs in Step 2.
-- Every timeline chip, asset row and checklist item must trace to a playbook, a brief.timeline phase, or channelMixSuggestion. If the synthesis lacks it, omit it — do not fabricate.
-- Owners are roles (Content / FAE / Digital / PR / Web), never invented names.
-- Keep the OUTPUT CONTRACT: output STARTS with %%MD_START%% (no preamble); both marker pairs (MD + HTML_BODY) opened and closed; no text after %%HTML_BODY_END%%.
-- The MD block (%%MD_START%%…%%MD_END%%) mirrors the same 3 sections in plain markdown (timeline as a phase list, assets as a table, checklist as - [ ] items).
+SLIDE 3 — Content & Assets (archetype: cards-Nup). 3–4 .card, one per key deliverable; .card-head = asset name (yellow), body = type / channel / owner-ROLE (Content/FAE/Digital/PR) / phase:
+<section class="slide">
+  <div class="slide-title">Content & Assets</div>
+  <div class="msg-bar msg-bar--blue">{the one asset-production takeaway}</div>
+  <div class="slide-body"><div class="cards">
+    <div class="card"><div class="card-head">{asset}</div><div class="card-body"><ul><li>类型 {type}</li><li>渠道 {channel}</li><li>Owner {role}</li><li>阶段 {phase}</li></ul></div></div>
+    ...more cards...
+  </div></div>
+</section>
+
+SLIDE 4 — Execution Checklist, grouped by the 3 phases:
+<section class="slide">
+  <div class="slide-title">Execution Checklist</div>
+  <div class="msg-bar msg-bar--navy">{the one execution takeaway}</div>
+  <div class="slide-body"><div class="checklist">
+    <div class="phase-h">Phase 1 · {days}</div>
+    <div class="item"><span class="box"></span><span>{verb-first task · owner role}</span></div>
+    ...items, then Phase 2 / Phase 3 headers + items...
+  </div></div>
+</section>
+
+SLIDE 5 — Closing (mandatory trademark slide):
+<section class="slide slide--closing">
+  <h2>Our technology starts with You</h2>
+  <div class="tm-band">© STMicroelectronics — All rights reserved. ST logo is a trademark or a registered trademark of STMicroelectronics International NV or its affiliates in the EU and/or other countries. For additional information about ST trademarks, please refer to www.st.com/trademarks. All other product or service names are the property of their respective owners.</div>
+</section>
+
+OUTPUT CONTRACT:
+- Output STARTS with %%MD_START%% (no preamble). The MD block mirrors the deck as plain markdown: a title line, the timeline as a phase list, assets as a markdown table, the checklist as - [ ] items. Close with %%MD_END%%, then %%HTML_BODY_START%% + the <section class="slide"> deck + %%HTML_BODY_END%%. No text after it.
+- Slide text is in ${langDisplayName(c.uiLang)}; keep ST brand terms (ST, Cube2, channel names) as-is.
+- Every chip / card / checklist item traces to a playbook, brief.timeline phase, or channelMixSuggestion. Omit anything the synthesis lacks — never fabricate.
 
 DATA:
 ${data}`;
