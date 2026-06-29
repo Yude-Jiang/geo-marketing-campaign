@@ -251,7 +251,10 @@ coreRoadblocks: ${sr.coreRoadblocks}
 strategicPivot: ${sr.strategicPivot}
 keyInsight: ${sr.keyInsight}
 actionPlan:
-${(syn?.strategicReport?.actionPlan || []).map((s, i) => `  ${i + 1}. ${s}`).join('\n')}` : '';
+${(syn?.strategicReport?.actionPlan || []).map((s, i) => {
+  const item = typeof s === 'string' ? { priority: '', action: s } : s;
+  return `  ${i + 1}. [${item.priority || 'P1'}] ${item.action}`;
+}).join('\n')}` : '';
   const competitorBattleCards = (syn?.competitorDiagnoses || []).map((comp, idx) => `${idx + 1}. ${comp.name} [tier: ${comp.threatTier}${typeof comp.mentionShare === 'number' ? `, SOV: ${Math.round(comp.mentionShare * 100)}%` : ''}]
 - corpusAdvantage: ${comp.corpusAdvantage}
 - weakSpot: ${comp.weakSpot}

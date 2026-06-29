@@ -221,7 +221,17 @@ const synthesisSchema = {
             keyInsight: { type: Type.STRING },
           },
         },
-        actionPlan: strList,
+        actionPlan: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              priority: { type: Type.STRING },
+              action: { type: Type.STRING },
+            },
+            required: ['priority', 'action'],
+          },
+        },
       },
     },
     competitorDiagnoses: {
@@ -495,8 +505,8 @@ Produce a complete campaign synthesis as JSON with:
 - intentDiagnoses: one per intentGroup with metrics computed from probes, narrative, failureDiagnosis, recommendedPlaybookIds
 - playbooks: 4-8 CampaignPlaybook items (extend StrategicPlaybookItem fields: id, intentGroupIds, targetQuestionIds, funnelStage, effortTier, plus sourceLogic, tacticsType, contentPlatform, structuredDataStrategy, geoAction, targetSnippet, anchorIds)
 - executiveSummary: 3-4 sentences
-- innovationPlays: 3-5 unconventional GEO ideas
-- strategicReport: a structured executive report with executiveSummary = { marketPulse (how AI sees this category today), coreRoadblocks (what blocks ST from being the cited answer), strategicPivot (the core move to make), keyInsight (the single sharpest takeaway) } and actionPlan (4-6 concrete step-by-step GEO tasks). Each field 1-2 tight sentences.
+- innovationPlays: 3-5 UNCONVENTIONAL, higher-risk/higher-upside bets that go BEYOND the standard playbook (e.g. seed a public benchmark/"擂台" on Zhihu/B站, an AI-targeted comparison artifact, a provocative reframing). Each names its unconventional angle. They MUST NOT duplicate or restate any actionPlan item — if it's a routine must-do repair, it belongs in actionPlan, not here.
+- strategicReport: a structured executive report with executiveSummary = { marketPulse (how AI sees this category today), coreRoadblocks (what blocks ST from being the cited answer), strategicPivot (the core move to make), keyInsight (the single sharpest takeaway) } (each 1-2 tight sentences) and actionPlan = 4-6 CORE MUST-DO repairs, each an object { priority (P0=must-do/urgent, P1=important, P2=optional), action (one concrete sentence) }. actionPlan = the table-stakes GEO fixes traceable to the diagnosis (corpus gaps, anchor content, structured data) — CONVENTIONAL, high-confidence, sequenced by priority; NOT experimental ideas (those go to innovationPlays).
 - competitorDiagnoses: a real MARKET analysis of the competitors recurring across the probes' dominantCompetitors AND named in the China-local model evidence. COVER AT LEAST THE 5 MOST FREQUENT. Do NOT just restate GEO void metrics — analyse the competitive market. Every field must be concrete, specific and traceable to evidence; no generic filler. For each:
     • name
     • threatTier (dominant/strong/emerging — dominant = named across many probes/models and driving severe voids)

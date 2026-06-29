@@ -247,6 +247,13 @@ export interface CampaignSynthesis {
   competitorDiagnoses: CompetitorDiagnosis[];
 }
 
+/** One prioritised must-do action (distinct from an innovation bet) */
+export interface ActionPlanItem {
+  /** P0 = must-do/urgent, P1 = important, P2 = optional */
+  priority: CampaignPriority;
+  action: string;
+}
+
 /** Structured strategic report (4 executive dimensions + an action plan) */
 export interface StrategicReport {
   executiveSummary: {
@@ -255,7 +262,8 @@ export interface StrategicReport {
     strategicPivot: string;
     keyInsight: string;
   };
-  actionPlan: string[];
+  /** Core must-do repairs, prioritised. Back-compat: older campaigns stored string[] */
+  actionPlan: (ActionPlanItem | string)[];
 }
 
 export type CompetitorThreatTier = 'dominant' | 'strong' | 'emerging';

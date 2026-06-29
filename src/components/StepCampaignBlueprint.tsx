@@ -140,6 +140,15 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   })();
   const competitorSet = new Set(competitorFreq.map(([name]) => name));
   const strategicReport = syn.strategicReport;
+  // Normalise + prioritise the action plan (back-compat with old string[] data).
+  const PRIORITY_ORDER: Record<string, number> = { P0: 0, P1: 1, P2: 2 };
+  const priorityColor = (p: string) => p === 'P0' ? '#ef4444' : p === 'P2' ? '#3cb4e6' : '#f59e0b';
+  const actionPlan = (strategicReport?.actionPlan || [])
+    .map(s => typeof s === 'string'
+      ? { priority: 'P1', action: s }
+      : { priority: (s.priority || 'P1') as string, action: s.action || '' })
+    .filter(a => a.action)
+    .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1));
   const competitorDiagnoses = syn.competitorDiagnoses || [];
   const langMismatch = campaign.uiLang !== uiLang;
   const severityColor = (sev: number) =>
@@ -354,17 +363,35 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                 </div>
               ))}
             </div>
-            {strategicReport.actionPlan?.length > 0 && (
-              <div className="px-6 pb-6">
-                <h4 className="u-eyebrow text-[#5f6f85] mb-2">{c.strategyActionPlan}</h4>
-                <ol className="space-y-1.5">
-                  {strategicReport.actionPlan.map((step, i) => (
-                    <li key={i} className="flex gap-2.5 text-[13px] text-slate-600">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#3cb4e6]/10 text-[#3cb4e6] text-[11px] font-bold flex items-center justify-center">{i + 1}</span>
-                      {toDisplayText(step)}
-                    </li>
-                  ))}
-                </ol>
+            {(actionPlan.length > 0 || innovationPlays.length > 0) && (
+              <div className="px-6 pb-6 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+                {actionPlan.length > 0 && (
+                  <div>
+                    <h4 className="u-eyebrow text-[#5f6f85]">{c.strategyActionPlan}</h4>
+                    <p className="text-[10px] text-slate-400 mb-2.5">{c.apLegend}</p>
+                    <ul className="space-y-2">
+                      {actionPlan.map((item, i) => (
+                        <li key={i} className="flex gap-2.5 text-[13px] text-slate-600 items-start">
+                          <span className="flex-shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded text-white mt-0.5" style={{ backgroundColor: priorityColor(item.priority) }}>{item.priority}</span>
+                          <span>{item.action}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {innovationPlays.length > 0 && (
+                  <div className="bg-[#03234b] rounded-xl p-4">
+                    <h4 className="text-[12px] font-bold text-[#ffd200] mb-1 flex items-center gap-1.5">
+                      <Lightbulb className="w-3.5 h-3.5" /> {c.innovationTitle}
+                    </h4>
+                    <p className="text-[10px] text-white/45 mb-2.5">{c.innovationHint}</p>
+                    <ul className="space-y-2 text-[12px] text-white/85">
+                      {innovationPlays.map((play, i) => (
+                        <li key={i} className="flex gap-2"><span className="text-[#3cb4e6] flex-shrink-0">→</span>{play}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -511,7 +538,9 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
           })}
         </div>
 
-        {innovationPlays.length > 0 && (
+        {/* Fallback: only when there is no strategic-report card to host the
+            innovation column (e.g. older/degraded campaigns). */}
+        {!strategicReport?.executiveSummary && innovationPlays.length > 0 && (
           <div className="bg-[#03234b] rounded-2xl p-6 text-white">
             <h3 className="text-[13px] font-bold text-[#ffd200] mb-4">{c.innovationTitle}</h3>
             <ul className="space-y-2 text-sm text-white/80">
