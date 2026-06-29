@@ -14,7 +14,7 @@ export const langDisplayName = (lang: string): string =>
 
 export const translations = {
   zh: {
-    appTitle: 'GEO 战略工作台',
+    appTitle: 'Campaign Hub',
     appSubtitle: 'Campaign 发现 → 战役蓝图',
     ecosystemLabel: '目标生态',
     ecosystems: {
@@ -83,7 +83,7 @@ export const translations = {
       backDiscovery: '返回发现',
       playbooksTitle: '推荐 Playbook',
       innovationTitle: '创新打法',
-      reportBtn: '生成战役报告',
+      reportBtn: '生成战役提案',
       reprobeBtn: '复测认知',
       progressTitle: '战役进展',
       pipelineStages: {
@@ -268,9 +268,9 @@ export const translations = {
       schemaFailed: 'Schema 生成失败',
       schemaIdle: 'Schema 将在生成后显示',
       geoMethodsLabel: 'GEO 方法',
-      reportBtn: '生成战略报告',
+      reportBtn: '生成战役提案',
       reportGenerating: '报告生成中...',
-      reportTitle: 'GEO 战略报告',
+      reportTitle: '战役提案',
       reportDownloadBtn: '下载报告 .md',
       reportDownloadHtmlBtn: '下载报告 .html',
       reportCloseBtn: '关闭',
@@ -299,7 +299,7 @@ export const translations = {
       uploadHint: '上传 .txt / .md / .pdf',
       reportBtn: '生成优化报告',
     },
-    footer: '© 2026 GEO 战略工作台 · Powered by Gemini · 工程化 AI 认知主权',
+    footer: '© 2026 Campaign Hub · Powered by Gemini · 工程化 AI 认知主权',
     uiLang: '界面语言',
     chatTitle: 'GEO 助理',
     chatPlaceholder: '输入您的疑惑或战略问题...',
@@ -311,7 +311,7 @@ export const translations = {
     }
   },
   en: {
-    appTitle: 'GEO Strategic Hub',
+    appTitle: 'Campaign Hub',
     appSubtitle: 'Campaign Discovery → Blueprint',
     ecosystemLabel: 'Ecosystem',
     ecosystems: {
@@ -380,7 +380,7 @@ export const translations = {
       backDiscovery: 'Back to discovery',
       playbooksTitle: 'Recommended playbooks',
       innovationTitle: 'Innovation plays',
-      reportBtn: 'Generate campaign report',
+      reportBtn: 'Generate Campaign Proposal',
       reprobeBtn: 'Re-probe cognition',
       progressTitle: 'Campaign progress',
       pipelineStages: {
@@ -565,9 +565,9 @@ export const translations = {
       schemaFailed: 'Schema Generation Failed',
       schemaIdle: 'Schema appears after generation',
       geoMethodsLabel: 'GEO Methods',
-      reportBtn: 'Generate Strategic Report',
+      reportBtn: 'Generate Campaign Proposal',
       reportGenerating: 'Generating Report...',
-      reportTitle: 'GEO Strategic Report',
+      reportTitle: 'Campaign Proposal',
       reportDownloadBtn: 'Download .md',
       reportDownloadHtmlBtn: 'Download .html',
       reportCloseBtn: 'Close',
@@ -596,7 +596,7 @@ export const translations = {
       uploadHint: 'Upload .txt / .md / .pdf',
       reportBtn: 'Generate Optimization Report',
     },
-    footer: '© 2026 GEO Strategic Hub • Powered by Gemini • Engineering Probability in AI',
+    footer: '© 2026 Campaign Hub • Powered by Gemini • Engineering Probability in AI',
     uiLang: 'Interface Language',
     chatTitle: 'GEO Assistant',
     chatPlaceholder: 'Ask a question...',
@@ -608,7 +608,7 @@ export const translations = {
     }
   },
   jp: {
-    appTitle: 'GEO 戦略ハブ',
+    appTitle: 'Campaign Hub',
     appSubtitle: 'キャンペーン発見 → ブループリント',
     ecosystemLabel: '対象エコシステム',
     ecosystems: {
@@ -677,7 +677,7 @@ export const translations = {
       backDiscovery: '発見に戻る',
       playbooksTitle: '推奨プレイブック',
       innovationTitle: 'イノベーション',
-      reportBtn: 'キャンペーンレポート生成',
+      reportBtn: 'キャンペーン提案を生成',
       reprobeBtn: '認知を再プローブ',
       progressTitle: '進捗',
       pipelineStages: {
@@ -865,7 +865,7 @@ export const translations = {
       geoMethodsLabel: 'GEO メソッド',
       reportBtn: 'レポートを生成',
       reportGenerating: 'レポート生成中...',
-      reportTitle: 'GEO 戦略レポート',
+      reportTitle: 'キャンペーン提案',
       reportDownloadBtn: 'ダウンロード .md',
       reportDownloadHtmlBtn: 'ダウンロード .html',
       reportCloseBtn: '閉じる',
@@ -894,7 +894,7 @@ export const translations = {
       uploadHint: '.txt / .md / .pdf をアップロード',
       reportBtn: '最適化レポートを生成',
     },
-    footer: '© 2026 GEO 戦略ハブ • Powered by Gemini • AI 認知主権エンジニアリング',
+    footer: '© 2026 Campaign Hub • Powered by Gemini • AI 認知主権エンジニアリング',
     uiLang: 'UI 言語',
     chatTitle: 'GEO アシスタント',
     chatPlaceholder: 'メッセージを入力...',

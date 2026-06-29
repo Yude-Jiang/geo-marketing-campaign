@@ -312,12 +312,12 @@ details>*:not(summary):last-child{padding-bottom:14px}
 </head>
 <body>
 <header class="top-header">
-  <a class="logo" href="#"><span class="st-badge">ST</span><span class="logo-text">GEO Strategic Hub</span></a>
-  <span class="header-meta">Strategic Report · ${date}</span>
+  <a class="logo" href="#"><span class="st-badge">ST</span><span class="logo-text">Campaign Hub</span></a>
+  <span class="header-meta">${title} · ${date}</span>
 </header>
 ${bodyContent}
 <footer>
-  <div class="footer-text">© 2026 GEO Strategic Hub · yude.jiang@st.com · For internal use only</div>
+  <div class="footer-text">© 2026 Campaign Hub · yude.jiang@st.com · For internal use only</div>
   <div class="footer-stack">
     <span class="tech-pill">Gemini 2.5 Pro</span>
     <span class="tech-pill">GEO Analysis</span>

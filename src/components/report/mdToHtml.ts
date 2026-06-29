@@ -646,12 +646,12 @@ table.geo-signal td.bar-cell{padding:8px 16px;min-width:120px}
     <a class="header-logo" href="#">
       <span class="st-badge">ST</span>
       <div class="header-logo-text">
-        <h1>GEO Strategic Hub</h1>
+        <h1>Campaign Hub</h1>
         <p>Brand Visibility Intelligence</p>
       </div>
     </a>
     <div class="header-right">
-      <span style="font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.08em;text-transform:uppercase">Strategic Report</span>
+      <span style="font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.08em;text-transform:uppercase">${escapeHtml(title)}</span>
     </div>
   </div>
 </header>
@@ -683,7 +683,7 @@ ${postProcessHtml(out.join('\n'))}
 <footer>
   <div class="footer-inner">
     <div class="footer-left">
-      <p>© 2026 GEO Strategic Hub · <a href="mailto:yude.jiang@st.com">yude.jiang@st.com</a><br>
+      <p>© 2026 Campaign Hub · <a href="mailto:yude.jiang@st.com">yude.jiang@st.com</a><br>
       Generated ${date} · For internal use only</p>
     </div>
     <div class="footer-stack">

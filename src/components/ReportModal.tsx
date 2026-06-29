@@ -20,7 +20,7 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, content, isGenerating, 
 
   const p = t.production;
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const reportTitle = p.reportTitle ?? 'GEO Strategic Report';
+  const reportTitle = p.reportTitle ?? 'Campaign Proposal';
 
   const { md, htmlBody } = parseReportContent(content);
   const hasHtml = htmlBody.length > 100;
@@ -42,7 +42,7 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, content, isGenerating, 
 
   const handleDownloadMd = () => {
     const title = toFilename(extractTitle(md));
-    downloadBlob(new Blob([md], { type: 'text/markdown;charset=utf-8' }), `${title}-GEO战略报告-${date}.md`);
+    downloadBlob(new Blob([md], { type: 'text/markdown;charset=utf-8' }), `${title}-Campaign-Proposal-${date}.md`);
   };
 
   const handleDownloadHtml = () => {
@@ -52,7 +52,7 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, content, isGenerating, 
       : markdownToStyledHtml(md, reportTitle);
     downloadBlob(
       new Blob([htmlOut], { type: 'text/html;charset=utf-8' }),
-      `${title}-GEO战略报告-${date}.html`
+      `${title}-Campaign-Proposal-${date}.html`
     );
   };
 
