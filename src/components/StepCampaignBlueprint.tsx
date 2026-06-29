@@ -514,28 +514,30 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
           <h3 className="text-sm font-bold text-[#03234b] flex items-center gap-2">
             <Zap className="w-4 h-4 text-[#ffd200]" /> {c.playbooksTitle}
           </h3>
-          {playbooks.map(pb => {
-            const selected = selectedPlaybookIds.includes(pb.id);
-            return (
-              <div
-                key={pb.id}
-                onClick={() => togglePlaybookId(pb.id)}
-                className={`bg-white rounded-2xl p-5 border-2 cursor-pointer transition-all ${selected ? 'border-[#3cb4e6] shadow-lg' : 'border-slate-100 opacity-70'}`}
-              >
-                <div className="flex items-start gap-4">
-                  <div className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center ${selected ? 'bg-[#3cb4e6] border-[#3cb4e6]' : 'border-slate-300'}`}>
-                    {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
-                  </div>
-                  <div className="flex-1">
-                    <span className="u-eyebrow text-[#3cb4e6]">{toDisplayText(pb.tacticsType)}</span>
-                    <p className="font-bold text-[#03234b] mt-1">{toDisplayText(pb.sourceLogic)}</p>
-                    <p className="text-xs text-slate-500 mt-2">{toDisplayText(pb.geoAction)}</p>
-                    <p className="text-[11px] font-mono bg-slate-50 p-3 rounded-lg mt-3 text-slate-600">{toDisplayText(pb.targetSnippet)}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+            {playbooks.map(pb => {
+              const selected = selectedPlaybookIds.includes(pb.id);
+              return (
+                <div
+                  key={pb.id}
+                  onClick={() => togglePlaybookId(pb.id)}
+                  className={`bg-white rounded-2xl p-5 border-2 cursor-pointer transition-all ${selected ? 'border-[#3cb4e6] shadow-lg' : 'border-slate-100 opacity-70'}`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selected ? 'bg-[#3cb4e6] border-[#3cb4e6]' : 'border-slate-300'}`}>
+                      {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="u-eyebrow text-[#3cb4e6]">{toDisplayText(pb.tacticsType)}</span>
+                      <p className="font-bold text-[#03234b] mt-1">{toDisplayText(pb.sourceLogic)}</p>
+                      <p className="text-xs text-slate-500 mt-2">{toDisplayText(pb.geoAction)}</p>
+                      <p className="text-[11px] font-mono bg-slate-50 p-3 rounded-lg mt-3 text-slate-600 break-words">{toDisplayText(pb.targetSnippet)}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* Fallback: only when there is no strategic-report card to host the
