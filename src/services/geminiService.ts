@@ -400,7 +400,13 @@ THE %%HTML_BODY%% IS A "Campaign Proposal" SLIDE DECK following the STMicroelect
 ST BRAND RULES (mandatory):
 - Palette: ST Dark Blue #03234B (titles, dark bars), ST Yellow #FFD200 (value-prop headers / ONE highlight — ALWAYS dark-blue text on yellow, NEVER white), ST Light Blue #3CB4E6 (top message bar / supporting). Max 2–3 colours per slide.
 - Every content slide has a Title Only header (.slide-title) AND one key message bar (.msg-bar = the single thing to remember).
-- Minimal text, strong structure; no long analysis prose — turn findings into tight bullets/cards.
+
+DEPTH & SUBSTANCE (most important — the deck must NOT read hollow):
+- Every bullet carries a SPECIFIC fact: a number, a named competitor/product, a concrete platform/corpus ("知乎 X 万阅读的替换帖", "CSDN 教程密度"), a real spec, or a precise action. BAN generic filler ("提升性能", "增强认知", "扩大影响", "更好的内容") — if a line has no concrete noun/number, delete or replace it.
+- Cards carry 3–4 substantive bullets (not 1). Competitor cards use ALL fields (corpusAdvantage / weakSpot / interceptionPlay / crossModelValidation). Message-hierarchy proof boxes give 2–3 concrete specs each (pull real numbers/specs from brief.offer.differentiators & painPoints).
+- AI-cognition slide cites the ACTUAL probe findings: the binding/visibility %, the specific dominant competitors by name, the precise void areas, and a short real quote/paraphrase from marketPulse — not abstractions.
+- GIFBP rows are specific: Goal is quantified + time-bound; Insight names the competitor/void; Focus names the audience segment & ecosystem; Benefit states the concrete value with a spec; Proof lists real product facts.
+- Prefer fewer slides done deeply over padding. Substance over brevity, but still no run-on paragraphs — dense, specific bullets.
 
 %%HTML_BODY%% = a sequence of <section class="slide"> blocks. Use these EXACT classes (already styled — no <style>, no SmartArt, no <table> for the timeline):
 
@@ -430,8 +436,8 @@ SLIDE 3 — Current AI Cognition (目前的 AI 认知), from the T0 probes + str
   <div class="slide-title">Current AI Cognition</div>
   <div class="msg-bar msg-bar--blue">{the one takeaway on how AI sees us today}</div>
   <div class="slide-body"><div class="cards">
-    <div class="card navy"><div class="card-head">{aspect}</div><div class="card-body"><ul><li>{finding from probe data}</li></ul></div></div>
-    ...3–4 cards...
+    <div class="card navy"><div class="card-head">{aspect e.g. ST 可见度}</div><div class="card-body"><ul><li>{specific stat e.g. 加权绑定率 31%}</li><li>{where ST is absent, concretely}</li><li>{a real marketPulse paraphrase}</li></ul></div></div>
+    ...3–4 cards, each with 3 specific bullets...
   </div></div>
 </section>
 
@@ -466,10 +472,10 @@ SLIDE 6 — Content Clusters, from the playbooks grouped by content TYPE (文章
   <div class="slide-title">Content Clusters</div>
   <div class="msg-bar msg-bar--blue">{the one content-strategy takeaway}</div>
   <div class="slide-body"><div class="cards">
-    <div class="card blue"><div class="card-head">{content type e.g. 技术文章}</div><div class="card-body"><ul><li>{piece · channel}</li><li>{piece · channel}</li></ul></div></div>
-    <div class="card"><div class="card-head">{e.g. 视频}</div><div class="card-body"><ul><li>{piece · channel}</li></ul></div></div>
-    <div class="card"><div class="card-head">{e.g. 引流/付费}</div><div class="card-body"><ul><li>{百度/Bing/EDM piece}</li></ul></div></div>
-    ...
+    <div class="card blue"><div class="card-head">{content type e.g. 技术文章}</div><div class="card-body"><ul><li>{specific piece + angle · channel · target question}</li><li>{specific piece · channel}</li><li>{specific piece · channel}</li></ul></div></div>
+    <div class="card"><div class="card-head">{e.g. 视频}</div><div class="card-body"><ul><li>{specific piece + angle · channel}</li><li>{specific piece · channel}</li></ul></div></div>
+    <div class="card"><div class="card-head">{e.g. 引流/付费}</div><div class="card-body"><ul><li>{百度品牌专区 + 关键词 · 目标}</li><li>{Bing/EDM piece · 目标}</li></ul></div></div>
+    ...one card per content type; each 2–3 specific pieces...
   </div></div>
 </section>
 
@@ -509,7 +515,8 @@ ${data}`;
 export const generateCampaignReportStream = async (params: CampaignReportParams) => {
   const prompt = buildCampaignReportPrompt(params);
   const response = await getGenAI().models.generateContentStream({
-    model: GEMINI_MODELS.contentGen,
+    // Use the pro/analysis model for the final proposal — depth over speed.
+    model: GEMINI_MODELS.analysis,
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
   });
   async function* stream() {
