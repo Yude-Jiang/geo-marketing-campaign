@@ -395,14 +395,14 @@ CRITICAL QUALITY RULES:
 - NO FABRICATION: every timeline chip, asset and checklist item must trace to a playbook, brief.timeline phase, or channelMixSuggestion. If absent, omit it — never invent KPIs, dates, exposure counts, or analysis.
 - INTERNAL IDS: playbook/question/intent ids (pb-/q-/ig-) are internal refs — never show them in the report.
 
-THE %%HTML_BODY%% IS A SLIDE DECK — a "Campaign Proposal" presentation following the STMicroelectronics brand. It is an EXECUTION PLAN, not an analysis: all analysis, KPIs, competitor and cross-model findings live in the Step 2 Blueprint — DO NOT put them in the slides, and DO NOT invent KPI numbers, dates or exposure counts. Everything maps to the synthesis (brief.timeline, playbooks, channelMixSuggestion).
+THE %%HTML_BODY%% IS A "Campaign Proposal" SLIDE DECK following the STMicroelectronics brand. It is a complete proposal: campaign target, current AI cognition, competitor status, our product message, and the execution timeline — all DERIVED FROM THE DATA below. Do NOT invent numbers/dates/quotes; if the synthesis lacks something, omit it.
 
 ST BRAND RULES (mandatory):
-- Palette: ST Dark Blue #03234B (titles, dark bars), ST Yellow #FFD200 (ONE highlight / card headers — ALWAYS dark-blue text on yellow, NEVER white), ST Light Blue #3CB4E6 (message bars / supporting). Max 2–3 colours per slide.
+- Palette: ST Dark Blue #03234B (titles, dark bars), ST Yellow #FFD200 (value-prop headers / ONE highlight — ALWAYS dark-blue text on yellow, NEVER white), ST Light Blue #3CB4E6 (top message bar / supporting). Max 2–3 colours per slide.
 - Every content slide has a Title Only header (.slide-title) AND one key message bar (.msg-bar = the single thing to remember).
-- Minimal text, strong structure. No analysis prose.
+- Minimal text, strong structure; no long analysis prose — turn findings into tight bullets/cards.
 
-%%HTML_BODY%% = a sequence of <section class="slide"> blocks. Use these EXACT classes (the stylesheet already styles them — do not add <style>, no SmartArt, no <table> for the timeline):
+%%HTML_BODY%% = a sequence of <section class="slide"> blocks. Use these EXACT classes (already styled — no <style>, no SmartArt, no <table> for the timeline):
 
 SLIDE 1 — Title:
 <section class="slide slide--title">
@@ -412,50 +412,95 @@ SLIDE 1 — Title:
   <div class="st-mark">ST</div>
 </section>
 
-SLIDE 2 — Campaign Timeline (archetype: content/promotion lanes). Split the duration (${c.duration}) into 3 phases (e.g. 90d → Day 0–30 / 30–60 / 60–90). 2–4 chips per cell, each a concrete deliverable on a REAL channel (China: 微信服务号 / 知乎 / B站 / 中文论坛 / 百度 / Bing / EDM; global: blog / YouTube / LinkedIn / Google / Bing / EDM):
+SLIDE 2 — Executive Summary / Campaign Target, written with the GIFBP model (G=Goal 目标, I=Insight 洞察, F=Focus 受众与聚焦, B=Benefit 受众收益, P=Proof 证据). One tight sentence per row, derived from strategicReport + brief.objectives/audience/offer:
+<section class="slide">
+  <div class="slide-title">Executive Summary · Campaign Target</div>
+  <div class="msg-bar msg-bar--navy">{the campaign's single goal in one line}</div>
+  <div class="slide-body"><div class="gifbp">
+    <div class="gifbp-k">G · Goal<small>目标</small></div><div class="gifbp-v">{campaign goal/target}</div>
+    <div class="gifbp-k">I · Insight<small>洞察</small></div><div class="gifbp-v">{market/AI-cognition insight}</div>
+    <div class="gifbp-k">F · Focus<small>聚焦</small></div><div class="gifbp-v">{target audience & focus}</div>
+    <div class="gifbp-k">B · Benefit<small>收益</small></div><div class="gifbp-v">{benefit to the audience}</div>
+    <div class="gifbp-k">P · Proof<small>证据</small></div><div class="gifbp-v">{proof points}</div>
+  </div></div>
+</section>
+
+SLIDE 3 — Current AI Cognition (目前的 AI 认知), from the T0 probes + strategicReport.marketPulse + ST binding. cards-Nup, 3–4 cards (e.g. ST 当前可见度 / 主要认知空白 / 主导竞品 / 跨模型共识):
+<section class="slide">
+  <div class="slide-title">Current AI Cognition</div>
+  <div class="msg-bar msg-bar--blue">{the one takeaway on how AI sees us today}</div>
+  <div class="slide-body"><div class="cards">
+    <div class="card navy"><div class="card-head">{aspect}</div><div class="card-body"><ul><li>{finding from probe data}</li></ul></div></div>
+    ...3–4 cards...
+  </div></div>
+</section>
+
+SLIDE 4 — Competitor Status Analysis, from COMPETITOR BATTLE CARDS (one .card per competitor). card-head = competitor name; body = threatTier + corpusAdvantage (why AI prefers them) + weakSpot + our interceptionPlay:
+<section class="slide">
+  <div class="slide-title">Competitor Status</div>
+  <div class="msg-bar msg-bar--navy">{the one competitive takeaway}</div>
+  <div class="slide-body"><div class="cards">
+    <div class="card"><div class="card-head">{competitor} · {threatTier}</div><div class="card-body"><div class="card-sub">为何 AI 偏好</div><ul><li>{corpusAdvantage}</li></ul><div class="card-sub">弱点 / 拦截</div><ul><li>{weakSpot}</li><li>{interceptionPlay}</li></ul></div></div>
+    ...one card per top competitor...
+  </div></div>
+</section>
+
+SLIDE 5 — Message Hierarchy (our product's Top message → Value propositions → Proof points → Use cases), from brief.offer (summary/differentiators/painPoints) + brief.market (keyApplications). 2–3 value-prop columns (set --n). Yellow value-prop headers (dark-blue text), gray proof boxes:
+<section class="slide">
+  <div class="slide-title">Message Hierarchy · {product}</div>
+  <div class="slide-body"><div class="mh">
+    <div class="mh-cap">Top message</div>
+    <div class="mh-top">{the single top message / positioning sentence}</div>
+    <div class="mh-cap">Value proposition · Proof points</div>
+    <div class="mh-cols" style="--n:3">
+      <div class="mh-col"><div class="mh-vp">{value prop 1}</div><div class="mh-proof"><ul><li>{proof}</li><li>{proof}</li></ul></div></div>
+      <div class="mh-col"><div class="mh-vp">{value prop 2}</div><div class="mh-proof"><ul><li>{proof}</li></ul></div></div>
+      <div class="mh-col"><div class="mh-vp">{value prop 3}</div><div class="mh-proof"><ul><li>{proof}</li></ul></div></div>
+    </div>
+    <div class="mh-foot"><b>Use cases:</b> {key applications, comma-separated}</div>
+  </div></div>
+</section>
+
+SLIDE 6 — Content Clusters, from the playbooks grouped by content TYPE (文章/长文, 视频, 博客, 社媒, 引流/付费, EDM…). cards-Nup, one .card per cluster: head = content type, body = the specific pieces + their channel:
+<section class="slide">
+  <div class="slide-title">Content Clusters</div>
+  <div class="msg-bar msg-bar--blue">{the one content-strategy takeaway}</div>
+  <div class="slide-body"><div class="cards">
+    <div class="card blue"><div class="card-head">{content type e.g. 技术文章}</div><div class="card-body"><ul><li>{piece · channel}</li><li>{piece · channel}</li></ul></div></div>
+    <div class="card"><div class="card-head">{e.g. 视频}</div><div class="card-body"><ul><li>{piece · channel}</li></ul></div></div>
+    <div class="card"><div class="card-head">{e.g. 引流/付费}</div><div class="card-body"><ul><li>{百度/Bing/EDM piece}</li></ul></div></div>
+    ...
+  </div></div>
+</section>
+
+SLIDE 7 — Campaign Timeline (ST activation-plan style: CENTRAL horizontal axis with dated markers; CONTENT ASSETS hang ABOVE, PROMOTION sits BELOW). Choose 5–7 milestone dates across ${c.duration}; set --n to that count. Every row (.tl-assets, .tl-axis, .tl-promo) has exactly --n columns (empty <div class="tl-col"></div> where a date has no item). Deliverable goes above its ship date, channel push below its run date. Mark gated/launch with class "hl" (yellow), unconfirmed with "tbc". Real channels (China: 微信服务号/知乎/B站/中文论坛/百度/Bing/EDM; global: blog/YouTube/LinkedIn/Google/Bing/EDM). Multi-month campaign = a .tl-span bar with style="grid-column:{start}/{end}":
 <section class="slide">
   <div class="slide-title">Campaign Timeline</div>
   <div class="msg-bar msg-bar--navy">{the one launch-sequence takeaway}</div>
   <div class="slide-body">
-    <div class="exec-timeline">
-      <div class="etl-axis"><span class="etl-phase">{Phase 1 · days}</span><span class="etl-phase">{Phase 2 · days}</span><span class="etl-phase">{Phase 3 · days}</span></div>
-      <div class="etl-track assets"><div class="etl-track-label">内容资产 Content</div><div class="etl-cells"><div class="etl-cell"><span class="etl-item">{asset}</span></div><div class="etl-cell"><span class="etl-item">{asset}</span></div><div class="etl-cell"><span class="etl-item">{asset}</span></div></div></div>
-      <div class="etl-track promo"><div class="etl-track-label">推广 Promotion</div><div class="etl-cells"><div class="etl-cell"><span class="etl-item">{push}</span></div><div class="etl-cell"><span class="etl-item">{push}</span></div><div class="etl-cell"><span class="etl-item">{push}</span></div></div></div>
+    <div class="tl-legend"><span><i style="background:#FFD200"></i>{gated/launch}</span><span><i style="background:#DBDEE1"></i>TBC</span></div>
+    <div class="tl">
+      <div class="tl-side"><span class="tl-side-label assets">CONTENT ASSETS</span><span class="tl-side-label promo">PROMOTION</span></div>
+      <div class="tl-main" style="--n:6">
+        <div class="tl-assets"><div class="tl-col on"><div class="tl-item">{asset}</div></div><div class="tl-col on"><div class="tl-item hl">{gated asset}</div></div><div class="tl-col"></div><div class="tl-col on"><div class="tl-item">{asset}</div></div><div class="tl-col"></div><div class="tl-col on"><div class="tl-item">{asset}</div></div></div>
+        <div class="tl-axis"><div class="tl-date"><i></i><em>{date1}</em></div><div class="tl-date"><i></i><em>{date2}</em></div><div class="tl-date"><i></i><em>{date3}</em></div><div class="tl-date"><i></i><em>{date4}</em></div><div class="tl-date"><i></i><em>{date5}</em></div><div class="tl-date"><i></i><em>{date6}</em></div></div>
+        <div class="tl-promo"><div class="tl-col on"><div class="tl-item">{push}</div></div><div class="tl-col"></div><div class="tl-col on"><div class="tl-item">{push}</div></div><div class="tl-col on"><div class="tl-item">{push}</div></div><div class="tl-col"></div><div class="tl-col on"><div class="tl-item">{push}</div></div></div>
+        <div class="tl-spans"><div class="tl-span" style="grid-column:4 / 7">{multi-month campaign}</div></div>
+      </div>
     </div>
   </div>
 </section>
 
-SLIDE 3 — Content & Assets (archetype: cards-Nup). 3–4 .card, one per key deliverable; .card-head = asset name (yellow), body = type / channel / owner-ROLE (Content/FAE/Digital/PR) / phase:
-<section class="slide">
-  <div class="slide-title">Content & Assets</div>
-  <div class="msg-bar msg-bar--blue">{the one asset-production takeaway}</div>
-  <div class="slide-body"><div class="cards">
-    <div class="card"><div class="card-head">{asset}</div><div class="card-body"><ul><li>类型 {type}</li><li>渠道 {channel}</li><li>Owner {role}</li><li>阶段 {phase}</li></ul></div></div>
-    ...more cards...
-  </div></div>
-</section>
-
-SLIDE 4 — Execution Checklist, grouped by the 3 phases:
-<section class="slide">
-  <div class="slide-title">Execution Checklist</div>
-  <div class="msg-bar msg-bar--navy">{the one execution takeaway}</div>
-  <div class="slide-body"><div class="checklist">
-    <div class="phase-h">Phase 1 · {days}</div>
-    <div class="item"><span class="box"></span><span>{verb-first task · owner role}</span></div>
-    ...items, then Phase 2 / Phase 3 headers + items...
-  </div></div>
-</section>
-
-SLIDE 5 — Closing (mandatory trademark slide):
+SLIDE 8 — Closing (mandatory trademark slide):
 <section class="slide slide--closing">
   <h2>Our technology starts with You</h2>
   <div class="tm-band">© STMicroelectronics — All rights reserved. ST logo is a trademark or a registered trademark of STMicroelectronics International NV or its affiliates in the EU and/or other countries. For additional information about ST trademarks, please refer to www.st.com/trademarks. All other product or service names are the property of their respective owners.</div>
 </section>
 
 OUTPUT CONTRACT:
-- Output STARTS with %%MD_START%% (no preamble). The MD block mirrors the deck as plain markdown: a title line, the timeline as a phase list, assets as a markdown table, the checklist as - [ ] items. Close with %%MD_END%%, then %%HTML_BODY_START%% + the <section class="slide"> deck + %%HTML_BODY_END%%. No text after it.
+- Output STARTS with %%MD_START%% (no preamble). The MD block mirrors the deck as plain markdown (one section per slide). Close with %%MD_END%%, then %%HTML_BODY_START%% + the <section class="slide"> deck + %%HTML_BODY_END%%. No text after it.
 - Slide text is in ${langDisplayName(c.uiLang)}; keep ST brand terms (ST, Cube2, channel names) as-is.
-- Every chip / card / checklist item traces to a playbook, brief.timeline phase, or channelMixSuggestion. Omit anything the synthesis lacks — never fabricate.
+- Every line traces to the DATA (strategicReport / brief / competitorDiagnoses / probes / playbooks). Omit anything the synthesis lacks — never fabricate.
 
 DATA:
 ${data}`;
