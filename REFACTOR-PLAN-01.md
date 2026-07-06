@@ -333,3 +333,17 @@ export function isValidDimensionId(fw, dimId): boolean;
 8. 全量 `tsc -b` + `npm run build` + 端到端手测(seed→诊断→确认冻结→复测 delta 对齐)。
 
 > 每步小提交,命脉链路(诊断-复测)在第 5、8 步各验一次。
+
+---
+
+## 10. 实施后记(已落地 + 明确顺延项)
+
+**已落地(review 批准后实施)**:2 新文件(`types/framework.ts`、`config/intentFramework.ts`)+ 6 改文件。`tsc` 对本刀代码零错误(仅 `ReportModal.tsx` 既有 implicit-any 遗留,未触);`npm run build` 通过;15 项框架/分组确定性运行时检查全过(含"复测重跑分组完全一致=不重聚类")。诊断执行轨(`multiModelService.ts`/`server.js`)与确定性指标重算(`intentMetrics.ts`)未改动。附带修复既有 `CampaignSynthesis.degraded` 类型缺口(报告反虚构路径依赖它)。
+
+**Open-Q 最终裁决(用户批准)**:Q1 本刀不改探测注入(anchor 仅从松散字符串升级为结构化字段,`campaignGeminiService.ts` 探测 prompt 改读 `anchor.text`,注入行为不变)/ Q2 单层锚 / Q3 单主维度 / Q4 哨兵`__unassigned__`+console.warn 上报 / Q5 确认弹窗+`setCampaign(next,{force})` / Q6 单中文 canonical label / Q7 旧数据一律 `__unassigned__`,不冒充维度。
+
+**明确顺延到后续刀(务必接续,不可遗忘)**:
+1. **【高优先级 · 下一刀:探测诚信】** 停止把 anchor / campaign 主题 / "点名厂商"注入探测 prompt(GAP"做歪#1 引导性探测")。本刀只把 anchor 结构化,注入行为原样保留 —— 这是 Q1 的明确约定,零提示铁律的修复是下一刀且优先级高。
+2. **【UI 刀】** 冻结写保护当前是 `applyFreezeGuard` 的 **strip + warn** 临时妥协(冻结后非法改动被静默丢弃 + console.warn,不抛错以免炸 UI)。真正的"冻结后编辑入口禁用 + 明确用户反馈"顺延到 UI 刀。
+3. **【UI 刀】** 旧 campaign 迁移后落在 `__unassigned__` 的问题应在 UI 上打"需重建基线"标(数据层已用 `未归类（需重建基线）` label 表达,UI 尚未消费)。
+

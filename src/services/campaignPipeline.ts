@@ -9,7 +9,6 @@ import type {
   CampaignCreateInput,
   CampaignDurationType,
   CampaignPipelineProgress,
-  CampaignSynthesis,
   ProbePhase,
   QuestionProbe,
   TargetEcosystem,
@@ -22,6 +21,11 @@ import {
 import { runMultiModelVerificationForQuestion } from './multiModelService';
 import { fetchUrlContent } from './geminiService';
 import { enrichIntentDiagnoses } from './intentMetrics';
+import {
+  DEFAULT_FRAMEWORK,
+  DEFAULT_FRAMEWORK_ID,
+  DEFAULT_FRAMEWORK_VERSION,
+} from '../config/intentFramework';
 
 function newCampaignId() {
   return `camp-${Date.now()}`;
@@ -141,14 +145,24 @@ export async function runCampaignPipeline(
     region,
     uiLang,
     input,
+    // Bind the framework at creation; frozen version is locked at confirm (unfrozen now).
+    intentFrame: {
+      frameworkId: DEFAULT_FRAMEWORK_ID,
+      frameworkVersion: DEFAULT_FRAMEWORK_VERSION,
+      frozen: false,
+      activeDimensionIds: [],
+    },
     probes: [],
   };
 
   onProgress?.({ stage: 'preprocess', detail: 'Classifying seed questions...' });
   const preprocess = await preprocessSeedQuestions(
-    campaign.topic, seedTexts, uiLang, ecosystem, region,
+    campaign.topic, seedTexts, uiLang, ecosystem, region, DEFAULT_FRAMEWORK,
   );
   campaign.preprocess = preprocess;
+  campaign.intentFrame!.activeDimensionIds = [
+    ...new Set(preprocess.questions.map(q => q.dimensionId)),
+  ];
   campaign.status = 'probing';
 
   const baselineProbes = await runProbesForQuestions(

@@ -79,10 +79,21 @@ export function buildProgressSnapshot(
   }
   const currentProbes = [...latestNonBaseline.values()];
 
+  // Alignment anchor: same questionId (and therefore same frozen dimensionId).
+  // Because questions are frozen at baseline, a current probe with no baseline
+  // match signals drift (re-clustering / a question that escaped the freeze) —
+  // surface it rather than silently dropping.
   const questionDeltas: ProbeDelta[] = [];
   for (const curr of currentProbes) {
     const base = baselineByQ.get(curr.questionId);
-    if (base) questionDeltas.push(computeProbeDelta(base, curr));
+    if (base) {
+      questionDeltas.push(computeProbeDelta(base, curr));
+    } else {
+      console.warn(
+        `[probeDelta] current probe for question ${curr.questionId} has no frozen baseline — ` +
+        `cannot align; skipped. This should not happen while the coordinate system is frozen.`,
+      );
+    }
   }
 
   const t0 = baseline[0]?.probedAt ? new Date(baseline[0].probedAt).getTime() : Date.now();

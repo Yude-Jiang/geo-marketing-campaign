@@ -14,12 +14,21 @@ import type {
   QuestionProbe,
   SeedQuestion,
   SeedQuestionPreprocessResult,
+  SemanticAnchor,
   TargetEcosystem,
 } from '../types/campaign';
+import type { IntentFrameworkDefinition } from '../types/framework';
+import {
+  buildDimensionGroups,
+  isValidDimensionId,
+  UNASSIGNED_DIMENSION_ID,
+} from '../config/intentFramework';
 import { getGenAI, withRetry } from './geminiService';
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
+// Questions are CLASSIFIED into fixed framework dimensions (dimensionId), not
+// clustered into invented groups. Groups are derived in code (buildDimensionGroups).
 const preprocessSchema = {
   type: Type.OBJECT,
   properties: {
@@ -31,29 +40,19 @@ const preprocessSchema = {
           id: { type: Type.STRING },
           text: { type: Type.STRING },
           tier: { type: Type.STRING },
-          intentGroupId: { type: Type.STRING },
+          dimensionId: { type: Type.STRING },
           priority: { type: Type.STRING },
-          expectedAnchor: { type: Type.STRING },
+          anchor: {
+            type: Type.OBJECT,
+            properties: { text: { type: Type.STRING } },
+          },
           parentCategoryId: { type: Type.STRING },
         },
-        required: ['id', 'text', 'tier', 'intentGroupId', 'priority'],
-      },
-    },
-    intentGroups: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          id: { type: Type.STRING },
-          label: { type: Type.STRING },
-          questionIds: { type: Type.ARRAY, items: { type: Type.STRING } },
-          description: { type: Type.STRING },
-        },
-        required: ['id', 'label', 'questionIds'],
+        required: ['id', 'text', 'tier', 'dimensionId', 'priority'],
       },
     },
   },
-  required: ['questions', 'intentGroups'],
+  required: ['questions'],
 };
 
 const probeSchema = {
@@ -249,14 +248,29 @@ function toText(value: unknown): string {
 
 // ─── ① Preprocess seed questions ─────────────────────────────────────────────
 
+function normalizeAnchor(raw: unknown): SemanticAnchor | undefined {
+  if (!raw) return undefined;
+  if (typeof raw === 'string') return raw.trim() ? { text: raw.trim(), source: null, claimId: null } : undefined;
+  if (typeof raw === 'object') {
+    const text = (raw as Record<string, unknown>).text;
+    if (typeof text === 'string' && text.trim()) return { text: text.trim(), source: null, claimId: null };
+  }
+  return undefined;
+}
+
 export async function preprocessSeedQuestions(
   topic: string,
   seedQuestionTexts: string[],
   uiLang: string,
   ecosystem: TargetEcosystem,
   region: string,
+  framework: IntentFrameworkDefinition,
 ): Promise<SeedQuestionPreprocessResult> {
   const hasUserQuestions = seedQuestionTexts.length > 0;
+  const dimensionList = framework.dimensions
+    .map(d => `- ${d.id}: ${d.label} — ${d.description}`)
+    .join('\n');
+
   const prompt = `You are a GEO campaign strategist for semiconductor B2B.
 
 CAMPAIGN TOPIC: ${topic}
@@ -264,18 +278,21 @@ ECOSYSTEM: ${ecosystem}
 REGION: ${region || 'Global'}
 OUTPUT LANGUAGE for labels: ${uiLang}
 
+ENGINEERING DECISION DIMENSIONS (fixed coordinate system — classify each question into EXACTLY ONE by its id; do NOT invent new dimensions):
+${dimensionList}
+
 ${hasUserQuestions ? `USER SEED QUESTIONS (one per line — preserve exact text):
 ${seedQuestionTexts.map((q, i) => `${i + 1}. ${q}`).join('\n')}
 
 Tasks:
 1. Keep each user question text EXACTLY as given (assign stable ids q-1, q-2, ...).
 2. Classify tier: "category" (broad category cognition + vendor binding) or "sub_node" (specific sub-topic void).
-3. Group into 2-4 intentGroups.
+3. Assign each question ONE dimensionId from the fixed list above (use the id verbatim).
 4. Assign priority P0/P1/P2 based on likely GEO void severity.
-5. Infer expectedAnchor (ST product line or proof point) where possible.` : `No user questions provided. Generate 6-8 seed questions:
+5. Provide anchor.text: the exact verifiable entity/data an ideal answer must cite (e.g. a part family or proof point). Omit if none applies.` : `No user questions provided. Generate 6-8 seed questions:
 - 3-4 category tier (category cognition + which vendors AI mentions)
 - 3-4 sub_node tier (specific sub-topic void)
-Group into 2-4 intentGroups. Assign ids q-1, q-2, ... and ig-1, ig-2, ...`}
+Assign each an id (q-1, q-2, ...), ONE dimensionId from the fixed list above (id verbatim), a tier, a priority, and an anchor.text where applicable.`}
 
 Return JSON only.`;
 
@@ -290,18 +307,35 @@ Return JSON only.`;
     })
   );
 
-  const raw = parseJson<{
-    questions: SeedQuestion[];
-    intentGroups: SeedQuestionPreprocessResult['intentGroups'];
-  }>(result.text || '{}');
+  const raw = parseJson<{ questions: (SeedQuestion & { anchor?: unknown })[] }>(result.text || '{}');
 
   if (!Array.isArray(raw.questions) || raw.questions.length === 0) {
     throw new Error('Preprocess returned no questions — cannot run probes. Check seed input / model output.');
   }
 
+  // Validate dimensionId against the framework; invalid → surfaced sentinel (Q4).
+  let unassignedCount = 0;
+  const questions: SeedQuestion[] = raw.questions.map(q => {
+    const valid = q.dimensionId && isValidDimensionId(framework, q.dimensionId);
+    if (!valid) unassignedCount++;
+    return {
+      ...q,
+      dimensionId: valid ? q.dimensionId : UNASSIGNED_DIMENSION_ID,
+      anchor: normalizeAnchor(q.anchor),
+    };
+  });
+  if (unassignedCount > 0) {
+    console.warn(
+      `[preprocess] ${unassignedCount}/${questions.length} question(s) had a missing/invalid dimensionId ` +
+      `→ bucketed as ${UNASSIGNED_DIMENSION_ID}. Framework: ${framework.id}@${framework.version}.`,
+    );
+  }
+
   return {
-    questions: raw.questions,
-    intentGroups: Array.isArray(raw.intentGroups) ? raw.intentGroups : [],
+    questions,
+    intentGroups: buildDimensionGroups(questions, framework),
+    frameworkId: framework.id,
+    frameworkVersion: framework.version,
     preprocessedAt: new Date().toISOString(),
   };
 }
@@ -372,7 +406,7 @@ ${tierHint}
 CAMPAIGN: ${campaignTopic}
 ECOSYSTEM: ${ecosystem} | REGION: ${region || 'Global'}
 QUESTION: ${question.text}
-${question.expectedAnchor ? `EXPECTED ST ANCHOR (if fairly cited): ${question.expectedAnchor}` : ''}
+${question.anchor?.text ? `EXPECTED ST ANCHOR (if fairly cited): ${question.anchor.text}` : ''}
 
 Simulate how AI would answer today. Then analyse:
 - stMentioned, stBindingStrength (none/weak/strong)
@@ -380,7 +414,7 @@ Simulate how AI would answer today. Then analyse:
 - dominantCompetitors (semiconductor vendors)
 - primaryFailure (CORPUS_ABSENCE|ATTRIBUTE_MISMATCH|BURIED_ANSWER|COMPETITOR_DOMINANCE|SEMANTIC_IRRELEVANCE|OUTDATED_CONTENT|TRUST_CREDIBILITY|STRUCTURAL_WEAKNESS|UNKNOWN)
 - categoryUnderstood (only if category tier)
-- anchorStatus (verified/partial/unverified) if expectedAnchor provided
+- anchorStatus (verified/partial/unverified) if an expected anchor is provided
 
 SCORING CONSISTENCY (mandatory — these fields must not contradict each other):
 - If stMentioned=false, ST is absent → voidSeverity MUST be >= 6, voidSize MUST be medium/large/critical, and primaryFailure MUST be COMPETITOR_DOMINANCE (if competitors are listed) or CORPUS_ABSENCE (if not). voidSize "none"/"small" with stMentioned=false is forbidden.
@@ -421,7 +455,7 @@ export async function synthesizeCampaign(
     questionId: p.questionId,
     text: p.questionText,
     tier: preprocess.questions.find(q => q.id === p.questionId)?.tier,
-    intentGroupId: preprocess.questions.find(q => q.id === p.questionId)?.intentGroupId,
+    dimensionId: preprocess.questions.find(q => q.id === p.questionId)?.dimensionId,
     gemini: p.gemini,
     multiModelConsensus: p.multiModel?.consensusLevel,
   }));
