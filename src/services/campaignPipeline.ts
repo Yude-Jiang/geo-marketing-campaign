@@ -1,7 +1,5 @@
 /**
- * Campaign pipeline orchestration.
- * Gemini: preprocess, probe simulation, synthesis, report.
- * CN models: optional per-question real probe via multiModelService.
+ * Campaign pipeline orchestration (M1: real-probe-driven scoring).
  */
 
 import type {
@@ -15,10 +13,10 @@ import type {
 } from '../types/campaign';
 import {
   preprocessSeedQuestions,
-  runGeminiQuestionProbe,
   synthesizeCampaign,
 } from './campaignGeminiService';
-import { runMultiModelVerificationForQuestion } from './multiModelService';
+import { runZeroHintProbes } from './multiModelService';
+import { PROBE_MODEL_IDS } from '../config/probeProtocol';
 import { fetchUrlContent } from './geminiService';
 import { enrichIntentDiagnoses } from './intentMetrics';
 import {
@@ -26,6 +24,12 @@ import {
   DEFAULT_FRAMEWORK_ID,
   DEFAULT_FRAMEWORK_VERSION,
 } from '../config/intentFramework';
+import {
+  CURRENT_PROBE_PROTOCOL,
+  DEFAULT_RUNS_PER_MODEL,
+} from '../config/probeProtocol';
+import { refereeExtractObservations } from './probeReferee';
+import { aggregateProbeScore } from './probeAggregation';
 
 function newCampaignId() {
   return `camp-${Date.now()}`;
@@ -46,6 +50,11 @@ function durationToPromptText(duration: CampaignDurationType): string {
   }
 }
 
+export function isCnEcosystem(ecosystem: TargetEcosystem, region: string): boolean {
+  const regionIsCn = /\b(cn|china|prc)\b|中国|大陆|大陸/i.test(region || '');
+  return ecosystem === 'cn' || regionIsCn;
+}
+
 async function gatherSourceContext(urls?: string[]): Promise<string> {
   if (!urls?.length) return '';
   const chunks: string[] = [];
@@ -53,7 +62,7 @@ async function gatherSourceContext(urls?: string[]): Promise<string> {
     try {
       const text = await fetchUrlContent(url);
       if (text?.body) chunks.push(`--- ${url} ---\n${text.body.slice(0, 3000)}`);
-    } catch { /* skip failed URLs */ }
+    } catch { /* skip */ }
   }
   return chunks.join('\n\n');
 }
@@ -63,43 +72,80 @@ async function runProbesForQuestions(
   phase: ProbePhase,
   onProgress?: (p: CampaignPipelineProgress) => void,
 ): Promise<QuestionProbe[]> {
-  const { preprocess, topic, ecosystem, region } = campaign;
+  const { preprocess, ecosystem, region } = campaign;
   if (!preprocess) return [];
 
   const questions = preprocess.questions;
+  const runsPerModel = campaign.intentFrame?.probeRunsPerModel ?? DEFAULT_RUNS_PER_MODEL;
+  const runCn = isCnEcosystem(ecosystem, region);
+  const totalAttemptsPerQ = PROBE_MODEL_IDS.length * runsPerModel;
+
   const probes: QuestionProbe[] = [];
-  // Run CN multi-model probes when the ecosystem is 'cn', OR when the region
-  // clearly points to mainland China even if the ecosystem tag wasn't set to
-  // 'cn'. Without this fallback a China campaign mis-tagged as global would
-  // silently skip real probes and fall back to Gemini-simulated baselines only.
-  const regionIsCn = /\b(cn|china|prc)\b|中国|大陆|大陸/i.test(region || '');
-  const runCnMulti = ecosystem === 'cn' || regionIsCn;
 
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
-    onProgress?.({
-      stage: 'probe_questions',
-      detail: `Probing ${i + 1}/${questions.length}`,
-      completedQuestions: i,
-      totalQuestions: questions.length,
-    });
 
-    const gemini = await runGeminiQuestionProbe(
-      topic, q, campaign.uiLang, ecosystem, region,
-    );
-
-    let multiModel;
-    if (runCnMulti) {
+    if (!runCn) {
       onProgress?.({
-        stage: 'multi_model_verify',
-        detail: `CN models: question ${i + 1}/${questions.length}`,
+        stage: 'probe_questions',
+        detail: `Q${i + 1}/${questions.length}: CN ecosystem required for real probes`,
         completedQuestions: i,
         totalQuestions: questions.length,
       });
-      multiModel = await runMultiModelVerificationForQuestion(
-        q.text, topic, campaign.uiLang,
-      );
+      probes.push({
+        id: newProbeId(),
+        campaignId: campaign.id,
+        questionId: q.id,
+        questionText: q.text,
+        phase,
+        probedAt: new Date().toISOString(),
+        ecosystem,
+        region,
+        probeSkipReason: 'ecosystem_not_supported',
+      });
+      continue;
     }
+
+    onProgress?.({
+      stage: 'probe_questions',
+      detail: `Q${i + 1}/${questions.length}: real probes (N=${runsPerModel})`,
+      completedQuestions: i,
+      totalQuestions: questions.length,
+      completedAttempts: 0,
+      totalAttempts: totalAttemptsPerQ,
+    });
+
+    const attempts = await runZeroHintProbes(q.text, {
+      runsPerModel,
+      uiLang: campaign.uiLang,
+      onAttemptComplete: (done, total) => {
+        onProgress?.({
+          stage: 'probe_questions',
+          detail: `Q${i + 1}/${questions.length}: attempt ${done}/${total}`,
+          completedQuestions: i,
+          totalQuestions: questions.length,
+          completedAttempts: done,
+          totalAttempts: total,
+        });
+      },
+    });
+
+    onProgress?.({
+      stage: 'multi_model_verify',
+      detail: `Q${i + 1}/${questions.length}: referee scoring`,
+      completedQuestions: i,
+      totalQuestions: questions.length,
+      completedAttempts: totalAttemptsPerQ,
+      totalAttempts: totalAttemptsPerQ,
+    });
+
+    const observations = await refereeExtractObservations(q.text, attempts, q.anchor);
+    const scored = aggregateProbeScore({
+      attempts,
+      observations,
+      runsPerModel,
+      protocolVersion: CURRENT_PROBE_PROTOCOL,
+    });
 
     probes.push({
       id: newProbeId(),
@@ -110,8 +156,7 @@ async function runProbesForQuestions(
       probedAt: new Date().toISOString(),
       ecosystem,
       region,
-      gemini,
-      multiModel,
+      scored,
     });
   }
 
@@ -126,7 +171,7 @@ export interface RunCampaignPipelineOptions {
   onProgress?: (p: CampaignPipelineProgress) => void;
 }
 
-/** Full T0 pipeline: preprocess → probe → synthesize */
+/** Full T0 pipeline: preprocess → real probe → synthesize */
 export async function runCampaignPipeline(
   options: RunCampaignPipelineOptions,
 ): Promise<Campaign> {
@@ -145,12 +190,13 @@ export async function runCampaignPipeline(
     region,
     uiLang,
     input,
-    // Bind the framework at creation; frozen version is locked at confirm (unfrozen now).
     intentFrame: {
       frameworkId: DEFAULT_FRAMEWORK_ID,
       frameworkVersion: DEFAULT_FRAMEWORK_VERSION,
       frozen: false,
       activeDimensionIds: [],
+      probeProtocolVersion: CURRENT_PROBE_PROTOCOL,
+      probeRunsPerModel: DEFAULT_RUNS_PER_MODEL,
     },
     probes: [],
   };
@@ -165,9 +211,7 @@ export async function runCampaignPipeline(
   ];
   campaign.status = 'probing';
 
-  const baselineProbes = await runProbesForQuestions(
-    campaign, 'baseline', onProgress,
-  );
+  const baselineProbes = await runProbesForQuestions(campaign, 'baseline', onProgress);
   campaign.probes = baselineProbes;
   campaign.status = 'synthesizing';
 
@@ -198,14 +242,12 @@ export async function runCampaignPipeline(
   return campaign;
 }
 
-/** Re-run probes for progress tracking (same questions, new phase) */
 export async function rerunCampaignProbes(
   campaign: Campaign,
   phase: ProbePhase,
   onProgress?: (p: CampaignPipelineProgress) => void,
 ): Promise<QuestionProbe[]> {
-  const newProbes = await runProbesForQuestions(campaign, phase, onProgress);
-  return newProbes;
+  return runProbesForQuestions(campaign, phase, onProgress);
 }
 
 export function getBaselineProbes(campaign: Campaign): QuestionProbe[] {

@@ -4,6 +4,7 @@ import { runCampaignPipeline } from '../services/campaignPipeline';
 import type { CampaignPipelineProgress } from '../types/campaign';
 import type { TranslationKeys } from '../i18n/translations';
 import PipelineStageIndicator from './PipelineStageIndicator';
+import { getProbeScoreView } from '../services/probeScoreAccess';
 import { Loader2, Search, ChevronRight, AlertCircle, Target, Layers } from 'lucide-react';
 
 const toDisplayText = (value: unknown): string => {
@@ -239,8 +240,14 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
       {showSkeleton && <DiscoverySkeleton />}
 
-      {campaign?.synthesis && !showSkeleton && (
+          {campaign?.synthesis && !showSkeleton && (
         <>
+          {campaign.intentFrame?.probeProtocolVersion && (
+            <p className="text-[11px] text-slate-500 text-center">
+              Protocol: {campaign.intentFrame.probeProtocolVersion}
+              {campaign.intentFrame.probeRunsPerModel ? ` · N=${campaign.intentFrame.probeRunsPerModel}/model` : ''}
+            </p>
+          )}
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100">
             <h3 className="text-sm font-bold text-[#03234b] mb-3">{c.execSummary}</h3>
             <p className="text-[13px] text-[#5f6f85] leading-relaxed">{toDisplayText(campaign.synthesis.executiveSummary)}</p>
@@ -279,13 +286,38 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                 <tbody>
                   {probes.map(p => {
                     const tier = campaign.preprocess?.questions.find(q => q.id === p.questionId)?.tier;
+                    const score = getProbeScoreView(p);
+                    const isLegacy = score?.isLegacy;
                     return (
                       <tr key={p.id} className="border-t border-slate-100">
                         <td className="p-3 font-medium text-[#03234b] max-w-xs leading-relaxed">{p.questionText}</td>
                         <td className="p-3 text-[#5f6f85]">{tier}</td>
-                        <td className="p-3">{p.gemini.stBindingStrength}</td>
-                        <td className="p-3">{p.gemini.voidSize} ({p.gemini.voidSeverity})</td>
-                        <td className="p-3 text-[#5f6f85]">{p.gemini.dominantCompetitors.slice(0, 3).join(', ')}</td>
+                        <td className="p-3">
+                          {p.probeSkipReason ? (
+                            <span className="text-amber-600 text-[11px]">CN only</span>
+                          ) : score?.degraded ? (
+                            <span className="text-red-600 text-[11px]">degraded</span>
+                          ) : score ? (
+                            <>
+                              {score.stBindingStrength}
+                              {score.runsPerModel ? (
+                                <span className="block text-[10px] text-slate-400">
+                                  {Math.round(score.stMentionRate * 100)}% ({score.successfulAttempts} att)
+                                </span>
+                              ) : null}
+                              {score.stMentionForm !== 'none' && (
+                                <span className="block text-[10px] text-slate-400">form: {score.stMentionForm}</span>
+                              )}
+                            </>
+                          ) : '—'}
+                          {isLegacy && <span className="block text-[10px] text-amber-600">v1 模拟</span>}
+                        </td>
+                        <td className="p-3">
+                          {score?.scoreable ? `${score.voidSize} (${score.voidSeverity})` : '—'}
+                        </td>
+                        <td className="p-3 text-[#5f6f85]">
+                          {score?.dominantCompetitors.slice(0, 3).join(', ') || '—'}
+                        </td>
                       </tr>
                     );
                   })}

@@ -1,7 +1,6 @@
 # REFACTOR-PLAN-02 · M1 诊断诚信刀：真实探测驱动打分
 
-> 状态:**方案待 review，未改任何代码。**
-> 前置:第一刀(意图坐标系框架化 + 冻结对齐)已落地(`36d50d9`)。标尺:`GAP-ANALYSIS.md` §S3 / §E / 做歪#1–3；`docs/campaign-pipeline-master-spec.md` §S3 零提示 + 多次取共性。
+> 状态:**已实施(M1)**。前置:第一刀(意图坐标系框架化 + 冻结对齐)已落地(`36d50d9`)。标尺:`GAP-ANALYSIS.md` §S3 / §E / 做歪#1–3；`docs/campaign-pipeline-master-spec.md` §S3 零提示 + 多次取共性。
 > 目标:**工具吐出的每个数字，owner 敢拿去给管理层看**——所有进入打分 / battle-map / delta 的感知字段，必须能溯源到真实被测模型的原始回答。
 > 范围纪律:严格遵守四个硬约束；不动第一刀的 framework / 冻结 / 维度对齐；不加 `questionType` 字段。
 

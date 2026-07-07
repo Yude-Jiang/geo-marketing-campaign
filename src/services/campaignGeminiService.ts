@@ -24,6 +24,7 @@ import {
   UNASSIGNED_DIMENSION_ID,
 } from '../config/intentFramework';
 import { getGenAI, withRetry } from './geminiService';
+import { getProbeScoreView } from './probeScoreAccess';
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -281,6 +282,8 @@ OUTPUT LANGUAGE for labels: ${uiLang}
 ENGINEERING DECISION DIMENSIONS (fixed coordinate system — classify each question into EXACTLY ONE by its id; do NOT invent new dimensions):
 ${dimensionList}
 
+If no dimension is a clear fit, use dimensionId "${UNASSIGNED_DIMENSION_ID}" — this is a valid, honest choice (not an error).
+
 ${hasUserQuestions ? `USER SEED QUESTIONS (one per line — preserve exact text):
 ${seedQuestionTexts.map((q, i) => `${i + 1}. ${q}`).join('\n')}
 
@@ -292,7 +295,8 @@ Tasks:
 5. Provide anchor.text: the exact verifiable entity/data an ideal answer must cite (e.g. a part family or proof point). Omit if none applies.` : `No user questions provided. Generate 6-8 seed questions:
 - 3-4 category tier (category cognition + which vendors AI mentions)
 - 3-4 sub_node tier (specific sub-topic void)
-Assign each an id (q-1, q-2, ...), ONE dimensionId from the fixed list above (id verbatim), a tier, a priority, and an anchor.text where applicable.`}
+Assign each an id (q-1, q-2, ...), ONE dimensionId from the fixed list above (id verbatim), a tier, a priority, and an anchor.text where applicable.
+If no dimension is a clear fit, use dimensionId "${UNASSIGNED_DIMENSION_ID}" — this is valid.`}
 
 Return JSON only.`;
 
@@ -340,14 +344,8 @@ Return JSON only.`;
   };
 }
 
-// ─── ② Per-question Gemini probe ─────────────────────────────────────────────
+// ─── ② Per-question Gemini probe — @deprecated v1 simulated rail (M1) ───────
 
-/**
- * Deterministic post-processing: clamp ranges and reconcile the four mutually
- * dependent fields (binding ↔ severity ↔ voidSize ↔ failure) so the probe can
- * never contain self-contradictory signals (e.g. ST absent but voidSeverity=0).
- * voidSeverity is treated as the single source of truth for voidSize.
- */
 function normalizeProbe(s: GeminiProbeSnapshot): GeminiProbeSnapshot {
   const binding = (['none', 'weak', 'strong'].includes(s.stBindingStrength)
     ? s.stBindingStrength
@@ -355,21 +353,18 @@ function normalizeProbe(s: GeminiProbeSnapshot): GeminiProbeSnapshot {
   const stMentioned = binding === 'none' ? false : (s.stMentioned ?? true);
   const competitors = Array.isArray(s.dominantCompetitors) ? s.dominantCompetitors : [];
 
-  // 1) clamp severity, then reconcile against binding
   let severity = Math.round(Number(s.voidSeverity));
   if (!Number.isFinite(severity)) severity = stMentioned ? 3 : 7;
   severity = Math.min(10, Math.max(1, severity));
-  if (!stMentioned) severity = Math.max(severity, 6);   // absence is never a trivial void
-  if (binding === 'strong') severity = Math.min(severity, 4); // strong binding ⇒ small void
+  if (!stMentioned) severity = Math.max(severity, 6);
+  if (binding === 'strong') severity = Math.min(severity, 4);
 
-  // 2) derive voidSize from the reconciled severity (single source of truth)
   const voidSize: GeminiProbeSnapshot['voidSize'] =
     severity >= 9 ? 'critical' :
     severity >= 7 ? 'large' :
     severity >= 5 ? 'medium' :
     severity >= 3 ? 'small' : 'none';
 
-  // 3) reconcile primaryFailure with presence/absence
   let failure = s.primaryFailure || 'UNKNOWN';
   if (!stMentioned && (failure === 'UNKNOWN' || !failure)) {
     failure = competitors.length ? 'COMPETITOR_DOMINANCE' : 'CORPUS_ABSENCE';
@@ -389,6 +384,9 @@ function normalizeProbe(s: GeminiProbeSnapshot): GeminiProbeSnapshot {
   };
 }
 
+/**
+ * @deprecated M1 removes simulation from scoring. Pipeline uses runZeroHintProbes + referee.
+ */
 export async function runGeminiQuestionProbe(
   campaignTopic: string,
   question: SeedQuestion,
@@ -451,14 +449,29 @@ export async function synthesizeCampaign(
   duration: string,
   sourceContext?: string,
 ): Promise<CampaignSynthesis> {
-  const probeSummary = probes.map(p => ({
-    questionId: p.questionId,
-    text: p.questionText,
-    tier: preprocess.questions.find(q => q.id === p.questionId)?.tier,
-    dimensionId: preprocess.questions.find(q => q.id === p.questionId)?.dimensionId,
-    gemini: p.gemini,
-    multiModelConsensus: p.multiModel?.consensusLevel,
-  }));
+  const probeSummary = probes.map(p => {
+    const score = getProbeScoreView(p);
+    return {
+      questionId: p.questionId,
+      text: p.questionText,
+      tier: preprocess.questions.find(q => q.id === p.questionId)?.tier,
+      dimensionId: preprocess.questions.find(q => q.id === p.questionId)?.dimensionId,
+      scored: score ? {
+        stMentionRate: score.stMentionRate,
+        stMentionForm: score.stMentionForm,
+        stBindingStrength: score.stBindingStrength,
+        voidSize: score.voidSize,
+        voidSeverity: score.voidSeverity,
+        dominantCompetitors: score.dominantCompetitors,
+        primaryFailure: score.primaryFailure,
+        protocolVersion: score.protocolVersion,
+        runsPerModel: score.runsPerModel,
+        volatility: score.volatility,
+        degraded: score.degraded,
+      } : null,
+      probeSkipReason: p.probeSkipReason,
+    };
+  });
 
   const prompt = `You are a senior automotive semiconductor marketing strategist writing a GEO Campaign plan.
 

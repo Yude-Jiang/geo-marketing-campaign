@@ -8,10 +8,15 @@ import {
   DEFAULT_FRAMEWORK_VERSION,
   UNASSIGNED_DIMENSION_ID,
 } from '../config/intentFramework';
+import {
+  MAX_RAW_RESPONSE_CHARS,
+  PROBE_PROTOCOL_V1,
+  PROBE_PROTOCOL_V2,
+} from '../config/probeProtocol';
 
 export type Ecosystem = 'global' | 'cn' | 'jp' | 'kr';
 
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 5;
 
 /** Options for setCampaign. `force` overrides freeze protection on a full replace. */
 export interface SetCampaignOptions {
@@ -64,6 +69,8 @@ function applyFreezeGuard(
         frozen: true,
         frozenAt: frame.frozenAt,
         activeDimensionIds: frame.activeDimensionIds,
+        probeProtocolVersion: frame.probeProtocolVersion,
+        probeRunsPerModel: frame.probeRunsPerModel,
       }
       : frame,
   };
@@ -96,9 +103,25 @@ function migrateCampaignToV4(campaign: unknown): Campaign | null {
       frameworkVersion: DEFAULT_FRAMEWORK_VERSION,
       frozen: false,
       activeDimensionIds: [],
+      probeProtocolVersion: PROBE_PROTOCOL_V1,
+      probeRunsPerModel: 1,
     };
   }
   return c as Campaign;
+}
+
+/** v4 → v5: probe protocol defaults; never fabricate scored data. */
+function migrateCampaignToV5(campaign: unknown): Campaign | null {
+  const c = migrateCampaignToV4(campaign);
+  if (!c?.intentFrame) return c;
+  if (!c.intentFrame.probeProtocolVersion) {
+    const hasV2 = c.probes?.some(p => p.scored?.protocolVersion === PROBE_PROTOCOL_V2);
+    c.intentFrame.probeProtocolVersion = hasV2 ? PROBE_PROTOCOL_V2 : PROBE_PROTOCOL_V1;
+  }
+  if (!c.intentFrame.probeRunsPerModel) {
+    c.intentFrame.probeRunsPerModel = c.probes?.[0]?.scored?.runsPerModel ?? 1;
+  }
+  return c;
 }
 
 function clampStep(step: unknown): 1 | 2 {
@@ -166,10 +189,21 @@ function serializeCampaign(campaign: Campaign | null): Campaign | null {
     ...normalized,
     probes: safeProbes(normalized).map(p => ({
       ...p,
-      gemini: {
-        ...p.gemini,
-        simulatedAnswer: (p.gemini?.simulatedAnswer || '').slice(0, 2000),
-      },
+      gemini: p.gemini
+        ? {
+          ...p.gemini,
+          simulatedAnswer: (p.gemini.simulatedAnswer || '').slice(0, 2000),
+        }
+        : undefined,
+      scored: p.scored
+        ? {
+          ...p.scored,
+          attempts: p.scored.attempts.map(a => ({
+            ...a,
+            rawResponse: (a.rawResponse || '').slice(0, MAX_RAW_RESPONSE_CHARS),
+          })),
+        }
+        : undefined,
     })),
   };
 }
@@ -267,8 +301,10 @@ export const useWorkflowStore = create<WorkflowState>()(
       migrate: (persisted: unknown, version) => {
         const p = (persisted || {}) as Record<string, unknown>;
         if (version < STORAGE_VERSION) {
-          // v<4 → v4: inject framework defaults + backfill dimension/anchor (additive only).
-          const migrated = p.campaign ? migrateCampaignToV4(p.campaign) : null;
+          let migrated = p.campaign ? migrateCampaignToV4(p.campaign) : null;
+          if (version < 5 && migrated) {
+            migrated = migrateCampaignToV5(migrated);
+          }
           return {
             ...p,
             currentStep: clampStep(p.currentStep),

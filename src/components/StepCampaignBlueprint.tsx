@@ -88,25 +88,25 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const handleReprobe = async () => {
     setIsReprobing(true);
     try {
-      const phase = campaign.progressSnapshots?.length ? 'mid' : 'mid';
+      const phase: 'mid' | 'end' = campaign.progressSnapshots?.length ? 'end' : 'mid';
       const newProbes = await rerunCampaignProbes(campaign, phase);
       const updatedProbes = [...campaign.probes, ...newProbes];
-      const narrative = await generateProgressNarrative(
+      const snapshotDraft = buildProgressSnapshot(
+        campaign.id,
+        phase,
+        campaign.preprocess!,
+        updatedProbes,
+        '',
         campaign,
-        buildProgressSnapshot(
-          campaign.id,
-          phase,
-          campaign.preprocess!,
-          updatedProbes,
-          '',
-        ),
       );
+      const narrative = await generateProgressNarrative(campaign, snapshotDraft);
       const snapshot = buildProgressSnapshot(
         campaign.id,
         phase,
         campaign.preprocess!,
         updatedProbes,
         narrative,
+        campaign,
       );
       setCampaign({
         ...campaign,
@@ -154,9 +154,12 @@ const StepCampaignBlueprint: React.FC<{ t: TranslationKeys }> = ({ t }) => {
         </div>
 
         {latestProgress && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
-            <h3 className="text-[13px] font-bold text-emerald-800 mb-2">{c.progressTitle} (Day {latestProgress.daysSinceBaseline})</h3>
-            <p className="text-sm text-emerald-900 leading-relaxed">{latestProgress.narrative}</p>
+          <div className={`rounded-2xl p-5 border ${latestProgress.protocolMismatch ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-200'}`}>
+            <h3 className={`text-[13px] font-bold mb-2 ${latestProgress.protocolMismatch ? 'text-amber-800' : 'text-emerald-800'}`}>
+              {c.progressTitle} (Day {latestProgress.daysSinceBaseline})
+              {latestProgress.protocolMismatch && ' — ⚠ 跨协议不可比'}
+            </h3>
+            <p className={`text-sm leading-relaxed ${latestProgress.protocolMismatch ? 'text-amber-900' : 'text-emerald-900'}`}>{latestProgress.narrative}</p>
           </div>
         )}
 

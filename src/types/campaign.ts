@@ -22,6 +22,7 @@ import type {
   StrategicPlaybookItem,
 } from '../types';
 import type { MultiModelVerificationResult } from '../services/multiModelService';
+import type { ProbeProtocolVersion, ScoredProbeSnapshot } from './probe';
 
 // ─── Shared enums ────────────────────────────────────────────────────────────
 
@@ -157,8 +158,12 @@ export interface QuestionProbe {
   probedAt: string;
   ecosystem: TargetEcosystem;
   region: string;
-  /** Primary: Gemini simulation + optional Google Search grounding */
-  gemini: GeminiProbeSnapshot;
+  /** @deprecated v1 simulated rail — v2 uses `scored` only */
+  gemini?: GeminiProbeSnapshot;
+  /** v2: real probes + referee + aggregation */
+  scored?: ScoredProbeSnapshot;
+  /** Set when ecosystem does not support real probing (non-CN). */
+  probeSkipReason?: 'ecosystem_not_supported';
   /** Optional: Google Search claim verification on Gemini marketPulse */
   modelVerification?: ModelVerificationResult;
   /**
@@ -289,6 +294,9 @@ export interface IntentCoordinateSystem {
    * "activate a new dimension" evolution; the operation itself is out of scope.
    */
   activeDimensionIds: string[];
+  /** M1: probe protocol frozen alongside framework at confirm. */
+  probeProtocolVersion?: ProbeProtocolVersion;
+  probeRunsPerModel?: number;
 }
 
 // ─── Campaign aggregate (persisted) ─────────────────────────────────────────
@@ -350,6 +358,8 @@ export interface CampaignProgressSnapshot {
   intentGroupDeltas: IntentGroupDelta[];
   /** Short AI interpretation for Progress appendix */
   narrative: string;
+  /** True when baseline vs current probe protocol versions differ — deltas not comparable. */
+  protocolMismatch?: boolean;
 }
 
 // ─── UI: confirm page before report generation ────────────────────────────────
@@ -377,4 +387,6 @@ export interface CampaignPipelineProgress {
   detail?: string;
   completedQuestions?: number;
   totalQuestions?: number;
+  completedAttempts?: number;
+  totalAttempts?: number;
 }
