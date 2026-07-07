@@ -51,6 +51,7 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const region = useWorkflowStore(s => s.customRegion);
   const campaign = useWorkflowStore(s => s.campaign);
   const setCampaign = useWorkflowStore(s => s.setCampaign);
+  const freezeIntentFrame = useWorkflowStore(s => s.freezeIntentFrame);
   const setDiscoveryConfirmed = useWorkflowStore(s => s.setDiscoveryConfirmed);
   const setSelectedPlaybookIds = useWorkflowStore(s => s.setSelectedPlaybookIds);
   const setStep = useWorkflowStore(s => s.setStep);
@@ -96,6 +97,15 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
   const handleRun = async () => {
     if (!topic.trim()) return;
+    // Q5: a frozen coordinate system must not be silently overwritten by a re-run.
+    if (campaign?.intentFrame?.frozen) {
+      const msg = uiLang === 'zh'
+        ? '当前基线已冻结。重新运行将丢弃已冻结的意图坐标系与全部复测历史,是否继续?'
+        : uiLang === 'jp'
+          ? '現在のベースラインは凍結済みです。再実行すると凍結された意図座標系と全ての再測定履歴が失われます。続行しますか?'
+          : 'The current baseline is frozen. Re-running will discard the frozen intent coordinate system and all re-probe history. Continue?';
+      if (!window.confirm(msg)) return;
+    }
     setLoading(true);
     setError(null);
     setProgress(null);
@@ -114,7 +124,8 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
         uiLang,
         onProgress: setProgress,
       });
-      setCampaign(result);
+      // force: the frozen-replace guard was already gated by the confirm above.
+      setCampaign(result, { force: true });
       const p0 = result.synthesis?.playbooks
         .filter(pb => pb.effortTier !== 'L')
         .map(pb => pb.id) || [];
@@ -128,6 +139,9 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
   const handleConfirm = () => {
     if (!campaign?.synthesis) return;
+    // Freeze the intent coordinate system: from here the questions / dimension
+    // bindings / anchors are write-protected and re-probes align against them.
+    freezeIntentFrame();
     setDiscoveryConfirmed(true);
     setStep(2);
   };

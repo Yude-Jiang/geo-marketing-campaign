@@ -2,6 +2,8 @@
 
 AI-driven GEO marketing campaign planner: minimal input → cognitive probes → campaign blueprint → report.
 
+Methodology reference: [docs/campaign-pipeline-master-spec.md](docs/campaign-pipeline-master-spec.md) — MASTER SPEC v1.1 for the reusable campaign pipeline (S0–S9 stages, artifact contracts, decision gates, agent architecture).
+
 ## Local dev
 
 ```bash
