@@ -4,6 +4,7 @@ import { runCampaignPipeline } from '../services/campaignPipeline';
 import type { CampaignPipelineProgress } from '../types/campaign';
 import type { TranslationKeys } from '../i18n/translations';
 import PipelineStageIndicator from './PipelineStageIndicator';
+import { getProbeScoreView } from '../services/probeScoreAccess';
 import { Loader2, Search, ChevronRight, AlertCircle, Target, Layers } from 'lucide-react';
 
 const toDisplayText = (value: unknown): string => {
@@ -51,6 +52,7 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
   const region = useWorkflowStore(s => s.customRegion);
   const campaign = useWorkflowStore(s => s.campaign);
   const setCampaign = useWorkflowStore(s => s.setCampaign);
+  const freezeIntentFrame = useWorkflowStore(s => s.freezeIntentFrame);
   const setDiscoveryConfirmed = useWorkflowStore(s => s.setDiscoveryConfirmed);
   const setSelectedPlaybookIds = useWorkflowStore(s => s.setSelectedPlaybookIds);
   const setStep = useWorkflowStore(s => s.setStep);
@@ -96,6 +98,15 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
   const handleRun = async () => {
     if (!topic.trim()) return;
+    // Q5: a frozen coordinate system must not be silently overwritten by a re-run.
+    if (campaign?.intentFrame?.frozen) {
+      const msg = uiLang === 'zh'
+        ? '当前基线已冻结。重新运行将丢弃已冻结的意图坐标系与全部复测历史,是否继续?'
+        : uiLang === 'jp'
+          ? '現在のベースラインは凍結済みです。再実行すると凍結された意図座標系と全ての再測定履歴が失われます。続行しますか?'
+          : 'The current baseline is frozen. Re-running will discard the frozen intent coordinate system and all re-probe history. Continue?';
+      if (!window.confirm(msg)) return;
+    }
     setLoading(true);
     setError(null);
     setProgress(null);
@@ -114,7 +125,8 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
         uiLang,
         onProgress: setProgress,
       });
-      setCampaign(result);
+      // force: the frozen-replace guard was already gated by the confirm above.
+      setCampaign(result, { force: true });
       const p0 = result.synthesis?.playbooks
         .filter(pb => pb.effortTier !== 'L')
         .map(pb => pb.id) || [];
@@ -128,6 +140,9 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
   const handleConfirm = () => {
     if (!campaign?.synthesis) return;
+    // Freeze the intent coordinate system: from here the questions / dimension
+    // bindings / anchors are write-protected and re-probes align against them.
+    freezeIntentFrame();
     setDiscoveryConfirmed(true);
     setStep(2);
   };
@@ -225,8 +240,14 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
 
       {showSkeleton && <DiscoverySkeleton />}
 
-      {campaign?.synthesis && !showSkeleton && (
+          {campaign?.synthesis && !showSkeleton && (
         <>
+          {campaign.intentFrame?.probeProtocolVersion && (
+            <p className="text-[11px] text-slate-500 text-center">
+              Protocol: {campaign.intentFrame.probeProtocolVersion}
+              {campaign.intentFrame.probeRunsPerModel ? ` · N=${campaign.intentFrame.probeRunsPerModel}/model` : ''}
+            </p>
+          )}
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100">
             <h3 className="text-sm font-bold text-[#03234b] mb-3">{c.execSummary}</h3>
             <p className="text-[13px] text-[#5f6f85] leading-relaxed">{toDisplayText(campaign.synthesis.executiveSummary)}</p>
@@ -265,13 +286,38 @@ const StepCampaignDiscovery: React.FC<{ t: TranslationKeys }> = ({ t }) => {
                 <tbody>
                   {probes.map(p => {
                     const tier = campaign.preprocess?.questions.find(q => q.id === p.questionId)?.tier;
+                    const score = getProbeScoreView(p);
+                    const isLegacy = score?.isLegacy;
                     return (
                       <tr key={p.id} className="border-t border-slate-100">
                         <td className="p-3 font-medium text-[#03234b] max-w-xs leading-relaxed">{p.questionText}</td>
                         <td className="p-3 text-[#5f6f85]">{tier}</td>
-                        <td className="p-3">{p.gemini.stBindingStrength}</td>
-                        <td className="p-3">{p.gemini.voidSize} ({p.gemini.voidSeverity})</td>
-                        <td className="p-3 text-[#5f6f85]">{p.gemini.dominantCompetitors.slice(0, 3).join(', ')}</td>
+                        <td className="p-3">
+                          {p.probeSkipReason ? (
+                            <span className="text-amber-600 text-[11px]">CN only</span>
+                          ) : score?.degraded ? (
+                            <span className="text-red-600 text-[11px]">degraded</span>
+                          ) : score ? (
+                            <>
+                              {score.stBindingStrength}
+                              {score.runsPerModel ? (
+                                <span className="block text-[10px] text-slate-400">
+                                  {Math.round(score.stMentionRate * 100)}% ({score.successfulAttempts} att)
+                                </span>
+                              ) : null}
+                              {score.stMentionForm !== 'none' && (
+                                <span className="block text-[10px] text-slate-400">form: {score.stMentionForm}</span>
+                              )}
+                            </>
+                          ) : '—'}
+                          {isLegacy && <span className="block text-[10px] text-amber-600">v1 模拟</span>}
+                        </td>
+                        <td className="p-3">
+                          {score?.scoreable ? `${score.voidSize} (${score.voidSeverity})` : '—'}
+                        </td>
+                        <td className="p-3 text-[#5f6f85]">
+                          {score?.dominantCompetitors.slice(0, 3).join(', ') || '—'}
+                        </td>
                       </tr>
                     );
                   })}

@@ -5,6 +5,8 @@
  */
 
 import { GEMINI_MODELS } from '../config/models';
+import { getProbeScoreView } from './probeScoreAccess';
+import { PROBE_PROTOCOL_V2 } from '../config/probeProtocol';
 
 export { GEMINI_MODELS };
 
@@ -192,25 +194,19 @@ function buildCampaignReportPrompt(p: CampaignReportParams): string {
   const playbooks = syn?.playbooks.filter(pb =>
     !p.selectedPlaybookIds?.length || p.selectedPlaybookIds.includes(pb.id),
   ) ?? [];
-  // ── Integrity: compute metadata in CODE so the LLM can never invent it ──
-  // A snapshot only counts as REAL data when it has a non-empty response and no error.
-  // (runMultiModelProbe always returns 4 snapshots even when every model errored,
-  //  so a length check alone would wrongly report "real data" on a failed run.)
-  const isRealSnapshot = (s: { rawResponse?: string; error?: string }) =>
-    !s.error && !!s.rawResponse && s.rawResponse.trim().length > 0;
-  const hasRealMultiModel = probes.some(
-    pr => (pr.multiModel?.snapshots || []).some(isRealSnapshot),
-  );
+
+  const isRealAttempt = (a: { rawResponse?: string; error?: string }) =>
+    !a.error && !!a.rawResponse?.trim();
+  const hasRealProbes = probes.some(pr => pr.scored && !pr.scored.degraded);
   const cnModelsProbed = [
     ...new Set(
       probes.flatMap(pr =>
-        (pr.multiModel?.snapshots || []).filter(isRealSnapshot).map(s => s.modelName),
+        (pr.scored?.attempts || []).filter(isRealAttempt).map(a => a.modelId),
       ),
     ),
   ];
-  // Was the CN multi-model proxy invoked at all this run? (true even if every
-  // model errored) — lets the report distinguish "ran but failed" from "never ran".
-  const cnMultiAttempted = probes.some(pr => !!pr.multiModel);
+  const probeProtocol = c.intentFrame?.probeProtocolVersion || PROBE_PROTOCOL_V2;
+  const runsPerModel = c.intentFrame?.probeRunsPerModel ?? probes[0]?.scored?.runsPerModel ?? 2;
   const reportDate = (
     p.progressSnapshot ? new Date() : new Date(c.createdAt || Date.now())
   )
@@ -222,7 +218,9 @@ function buildCampaignReportPrompt(p: CampaignReportParams): string {
 
   const competitorCounts = new Map<string, number>();
   for (const pr of probes) {
-    for (const name of pr.gemini.dominantCompetitors || []) {
+    const score = getProbeScoreView(pr);
+    if (!score?.scoreable) continue;
+    for (const name of score.dominantCompetitors || []) {
       competitorCounts.set(name, (competitorCounts.get(name) || 0) + 1);
     }
   }
@@ -240,32 +238,33 @@ function buildCampaignReportPrompt(p: CampaignReportParams): string {
 - relatedVoidSeverity: ${(relatedIntent?.metrics?.avgVoidSeverity ?? 0).toFixed(1)}`;
   }).join('\n');
 
-  const geminiExecEvidence = probes.map((pr, idx) => `Q${idx + 1}: ${pr.questionText}
-- simulatedAnswer: ${pr.gemini.simulatedAnswer.slice(0, 380)}
-- marketPulse: ${pr.gemini.marketPulse.slice(0, 240)}
-- ST binding: ${pr.gemini.stBindingStrength} | void: ${pr.gemini.voidSize} (${pr.gemini.voidSeverity}/10)
-- competitors: ${(pr.gemini.dominantCompetitors || []).join(', ') || 'N/A'}
-- failure: ${pr.gemini.primaryFailure}`).join('\n\n');
-
-  const fourModelEvidence = probes.map((pr, idx) => {
-    const mm = pr.multiModel;
-    if (!mm) {
-      return `Q${idx + 1}: ${pr.questionText}\n- 4-model verification: not available`;
+  const realProbeEvidence = probes.map((pr, idx) => {
+    const s = pr.scored;
+    const score = getProbeScoreView(pr);
+    if (pr.probeSkipReason) {
+      return `Q${idx + 1}: ${pr.questionText}\n- status: CN ecosystem required — no real probe`;
     }
-    const snapshots = mm.snapshots.map(s => {
-      const ok = isRealSnapshot(s);
-      const body = ok
-        ? (s.rawResponse || '').slice(0, 240)
-        : `<探测失败/无响应: ${s.error || 'empty'}>`;
-      return `  - ${s.modelName} (${s.modelId}) [${ok ? 'OK' : 'FAILED'}] | sentiment=${s.sentiment} | latency=${s.latencyMs}ms
-    entities: ${(s.keyEntities || []).slice(0, 6).join(', ') || 'N/A'}
-    response: ${body}`;
-    }).join('\n');
+    if (!s || s.degraded || !score?.scoreable) {
+      return `Q${idx + 1}: ${pr.questionText}\n- status: degraded/insufficient (${s?.degradedReason || 'no score'})`;
+    }
+    const attemptLines = s.attempts.filter(isRealAttempt).map(a =>
+      `  - ${a.modelId} run${a.runIndex + 1}: ${a.rawResponse.slice(0, 280)}`,
+    ).join('\n');
     return `Q${idx + 1}: ${pr.questionText}
-- consensusLevel: ${mm.consensusLevel}
-- consensusSummary: ${mm.consensusSummary}
-${snapshots}`;
+- protocol: ${s.protocolVersion} | N=${s.runsPerModel} | mentionRate=${(s.stMentionRate * 100).toFixed(0)}% (${s.stMentionCount}/${s.successfulAttempts})
+- mentionForm: ${s.dominantMentionForm} | binding: ${s.stBindingStrength} | void: ${s.voidSize} (${s.voidSeverity}/10)
+- competitors: ${s.dominantCompetitors.map(c => c.name).join(', ') || 'N/A'}
+- failure: ${s.primaryFailure} | volatility: ${s.volatility}
+RAW RESPONSES:
+${attemptLines}`;
   }).join('\n\n');
+
+  const legacyGeminiEvidence = probes
+    .filter(pr => pr.gemini && !pr.scored)
+    .map((pr, idx) => `Q${idx + 1} [LEGACY v1]: ${pr.questionText}
+- ST: ${pr.gemini!.stBindingStrength} | void: ${pr.gemini!.voidSize} (${pr.gemini!.voidSeverity}/10)
+- NOTE: v1 simulated data — not comparable to v2 real probes`)
+    .join('\n\n');
 
   const intentDeepDive = (syn?.intentDiagnoses || []).map((ig, i) => `Intent ${i + 1} — ${ig.label}
 - metrics: ST rate=${Math.round((ig.metrics?.stMentionRate || 0) * 100)}%, avg void=${(ig.metrics?.avgVoidSeverity || 0).toFixed(1)}, critical=${ig.metrics?.criticalVoidCount || 0}
@@ -275,34 +274,30 @@ ${snapshots}`;
 - narrative: ${(ig.narrative || '').slice(0, 420)}
 - recommended playbooks: ${(ig.recommendedPlaybookIds || []).join(', ') || 'N/A'}`).join('\n\n');
 
-  // ── Four-LLM provenance: REAL only when a snapshot truly succeeded ──
   const cnModelsLabel = cnModelsProbed.length ? cnModelsProbed.join(', ') : 'none';
-  const fourModelDirective = hasRealMultiModel
-    ? `FOUR-LLM SECTION = REAL DATA. Models with a valid response: ${cnModelsLabel}.
-- Use ONLY the per-question snapshots in "FOUR LLM VERIFICATION EVIDENCE".
-- Snapshots are tagged [OK] or [FAILED]. Report [OK] models' ACTUAL entities/response.
-- For [FAILED] models write "探测失败"; for a model with no snapshot on a question write "未探测". NEVER infer what a FAILED/未探测 model "would" say.
-- Never paraphrase into hypotheticals ("可能/倾向于/善于").`
-    : cnMultiAttempted
-      ? `FOUR-LLM SECTION = PROBE RAN BUT ALL MODELS FAILED.
-- The CN multi-model proxy was called, but no model returned a valid response (check API keys / mainland connectivity).
-- Render the section as ONE status card: "⚠ 真实探测已执行但全部失败 — 待重跑". List the failed models (${probes.flatMap(pr => (pr.multiModel?.snapshots || []).map(s => s.modelName)).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'DeepSeek/Qwen/Doubao/Kimi'}) and their error if shown.
-- FORBIDDEN to fabricate, simulate, infer, or speculate any model observation, consensus, or divergence.`
-      : `FOUR-LLM SECTION = NO REAL PROBE THIS RUN.
-- Real CN multi-model probes (DeepSeek/Qwen/Doubao/Kimi) were NOT executed for this campaign.
-- Render the section as ONE status card: "⚠ 待补充真实探测 / Pending real cross-model probe".
-- FORBIDDEN to fabricate, simulate, infer, or speculate any model observation, consensus, or divergence.
-- Do NOT write "可能"-style hypotheticals. Do NOT invent a "战略模拟与推演" disclaimer and then proceed anyway.`;
+  const fourModelDirective = hasRealProbes
+    ? `FOUR-LLM SECTION = REAL v2 PROBE DATA (protocol ${probeProtocol}, N=${runsPerModel}/model).
+- Use ONLY "REAL PROBE EVIDENCE" below — raw responses from DeepSeek/Qwen/Doubao/Kimi.
+- Report mentionRate as frequency (k/N), not binary single-shot.
+- mentionForm distinguishes company vs product_line vs sub_brand — mention ≠ positioning.
+- NEVER infer what a failed/degraded probe "would" say.`
+    : probes.some(pr => pr.probeSkipReason)
+      ? `FOUR-LLM SECTION = ECOSYSTEM NOT SUPPORTED.
+- Real probes require CN ecosystem. Render status card only — no fabricated metrics.`
+      : `FOUR-LLM SECTION = NO VALID REAL PROBE DATA.
+- Render ONE status card: "⚠ 待补充真实探测". FORBIDDEN to fabricate model observations.`;
 
   let data = `
 REPORT METADATA — USE THESE EXACT VALUES, DO NOT INVENT OR ALTER:
 - archiveId (档案编号): ${archiveId}
 - groundingModel (情报来源/模型名): ${groundingModel}
 - reportDate (报告日期 YYYYMMDD): ${reportDate}
-- hasRealMultiModel: ${hasRealMultiModel}
+- hasRealProbes: ${hasRealProbes}
+- probeProtocol: ${probeProtocol}
+- runsPerModel: ${runsPerModel}
 - cnModelsProbed: ${cnModelsLabel}
-- synthesisDegraded: ${!!syn?.degraded}
 - synthesisDegraded: ${syn?.degraded ? 'true' : 'false'}
+${p.progressSnapshot?.protocolMismatch ? '- PROTOCOL WARNING: baseline and current probes use different protocols — do NOT compare trends.' : ''}
 
 CAMPAIGN TOPIC: ${c.topic}
 DURATION: ${c.duration}
@@ -324,14 +319,13 @@ ${playbooks.map((pb, i) => `${i + 1}. [${pb.tacticsType}] ${pb.geoAction}\n   Sn
 INNOVATION PLAYS:
 ${(syn?.innovationPlays || []).join('\n')}
 
-GEMINI SIMULATION EXECUTIVE EVIDENCE (PER QUESTION):
-${geminiExecEvidence || 'N/A'}
+REAL PROBE EVIDENCE (v2 — DeepSeek/Qwen/Doubao/Kimi zero-hint, N=${runsPerModel}):
+${realProbeEvidence || 'N/A'}
 
-FOUR LLM VERIFICATION EVIDENCE (DEEPSEEK / QWEN / DOUBAO / KIMI):
+${legacyGeminiEvidence ? `LEGACY v1 SIMULATION (not scored — reference only):\n${legacyGeminiEvidence}` : ''}
+
+FOUR-LLM SECTION DIRECTIVE:
 ${fourModelDirective}
-
-EVIDENCE:
-${fourModelEvidence || 'N/A'}
 
 COMPETITOR DIAGNOSIS SEED:
 ${competitorDiagnosisSeed || 'N/A'}
@@ -340,15 +334,21 @@ INTENT DEEP-DIVE EVIDENCE:
 ${intentDeepDive || 'N/A'}
 
 T0 PROBE BASELINE:
-${probes.map(pr => `- Q: ${pr.questionText}
-  ST: ${pr.gemini.stBindingStrength} | void: ${pr.gemini.voidSize} (${pr.gemini.voidSeverity}/10)
-  Competitors: ${pr.gemini.dominantCompetitors.join(', ')}
-  Failure: ${pr.gemini.primaryFailure}`).join('\n')}
+${probes.map(pr => {
+  const score = getProbeScoreView(pr);
+  if (!score?.scoreable) return `- Q: ${pr.questionText}\n  [no scoreable probe]`;
+  return `- Q: ${pr.questionText}
+  ST rate: ${(score.stMentionRate * 100).toFixed(0)}% form=${score.stMentionForm} | binding: ${score.stBindingStrength}
+  void: ${score.voidSize} (${score.voidSeverity}/10) | volatility: ${score.volatility || 'N/A'}
+  Competitors: ${score.dominantCompetitors.join(', ')}
+  Failure: ${score.primaryFailure}`;
+}).join('\n')}
 `;
 
   if (p.progressSnapshot) {
     data += `
 PROGRESS (day ${p.progressSnapshot.daysSinceBaseline}):
+${p.progressSnapshot.protocolMismatch ? '⚠ CROSS-PROTOCOL — deltas not comparable\n' : ''}
 ${JSON.stringify(p.progressSnapshot.questionDeltas, null, 2)}
 ${JSON.stringify(p.progressSnapshot.intentGroupDeltas, null, 2)}
 `;
@@ -434,7 +434,8 @@ Topic: ${campaign.topic}
 Days since baseline: ${snapshot.daysSinceBaseline}
 Question deltas: ${JSON.stringify(snapshot.questionDeltas)}
 Intent group deltas: ${JSON.stringify(snapshot.intentGroupDeltas)}
-Focus on ST binding improvements and void reduction as campaign effect evidence.` }],
+Focus on ST binding improvements and void reduction as campaign effect evidence.
+${snapshot.protocolMismatch ? 'IMPORTANT: probe protocol changed between baseline and current — explicitly state that deltas are NOT comparable; do not trend-analyze.' : ''}` }],
     }],
   });
   return res.text || '';

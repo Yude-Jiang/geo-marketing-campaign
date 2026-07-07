@@ -3,10 +3,126 @@ import { persist } from 'zustand/middleware';
 import type { UILang } from '../i18n/translations';
 import type { Campaign } from '../types/campaign';
 import { enrichIntentDiagnoses } from '../services/intentMetrics';
+import {
+  DEFAULT_FRAMEWORK_ID,
+  DEFAULT_FRAMEWORK_VERSION,
+  UNASSIGNED_DIMENSION_ID,
+} from '../config/intentFramework';
+import {
+  MAX_RAW_RESPONSE_CHARS,
+  PROBE_PROTOCOL_V1,
+  PROBE_PROTOCOL_V2,
+} from '../config/probeProtocol';
 
 export type Ecosystem = 'global' | 'cn' | 'jp' | 'kr';
 
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 5;
+
+/** Options for setCampaign. `force` overrides freeze protection on a full replace. */
+export interface SetCampaignOptions {
+  force?: boolean;
+}
+
+/**
+ * Freeze write-protection. When the current campaign's intent coordinate system
+ * is frozen:
+ *  • replacing it with a DIFFERENT campaign (re-run Step 1) is blocked unless
+ *    { force: true } (the UI gates this behind an explicit confirm — Q5);
+ *  • same-campaign updates keep the frozen intent structure (preprocess +
+ *    framework binding) — downstream fields (probes, synthesis, snapshots,
+ *    status, report) still flow through.
+ *
+ * NOTE: this is the "strip + warn" interim compromise (REFACTOR-PLAN-01 §3.3).
+ * Disabling edits at the UI layer with hard feedback is deferred to the UI knife.
+ */
+function applyFreezeGuard(
+  current: Campaign | null,
+  next: Campaign | null,
+  opts?: SetCampaignOptions,
+): Campaign | null {
+  if (!next || !current) return next;
+  if (!current.intentFrame?.frozen) return next;
+
+  // Full replace with a new campaign → protect the frozen one from silent loss.
+  if (next.id !== current.id) {
+    if (opts?.force) return next;
+    console.warn(
+      '[freeze] blocked replacing a frozen campaign with a new one — ' +
+      'baseline + re-probe history would be lost. Pass { force: true } to override.',
+    );
+    return current;
+  }
+
+  // Same campaign, frozen → restore the protected intent structure.
+  if (next.preprocess !== current.preprocess) {
+    console.warn('[freeze] stripped a mutation to frozen preprocess (questions / dimensions / anchors are frozen).');
+  }
+  const frame = current.intentFrame;
+  return {
+    ...next,
+    preprocess: current.preprocess,
+    intentFrame: next.intentFrame
+      ? {
+        ...next.intentFrame,
+        frameworkId: frame.frameworkId,
+        frameworkVersion: frame.frameworkVersion,
+        frozen: true,
+        frozenAt: frame.frozenAt,
+        activeDimensionIds: frame.activeDimensionIds,
+        probeProtocolVersion: frame.probeProtocolVersion,
+        probeRunsPerModel: frame.probeRunsPerModel,
+      }
+      : frame,
+  };
+}
+
+/**
+ * v3 → v4 migration: additive defaults only, never fabricate semantics (Q7).
+ * Old questions get the surfaced UNASSIGNED dimension (not faked into a real
+ * dimension); old campaigns are treated as UNFROZEN.
+ */
+function migrateCampaignToV4(campaign: unknown): Campaign | null {
+  if (!campaign || typeof campaign !== 'object') return campaign as Campaign | null;
+  const c = campaign as Record<string, any>;
+
+  const pre = c.preprocess;
+  if (pre && Array.isArray(pre.questions)) {
+    pre.questions = pre.questions.map((q: any) => ({
+      ...q,
+      dimensionId: q.dimensionId || UNASSIGNED_DIMENSION_ID,
+      anchor: q.anchor
+        || (q.expectedAnchor ? { text: q.expectedAnchor, source: null, claimId: null } : undefined),
+    }));
+    if (!pre.frameworkId) pre.frameworkId = DEFAULT_FRAMEWORK_ID;
+    if (!pre.frameworkVersion) pre.frameworkVersion = DEFAULT_FRAMEWORK_VERSION;
+  }
+
+  if (!c.intentFrame) {
+    c.intentFrame = {
+      frameworkId: DEFAULT_FRAMEWORK_ID,
+      frameworkVersion: DEFAULT_FRAMEWORK_VERSION,
+      frozen: false,
+      activeDimensionIds: [],
+      probeProtocolVersion: PROBE_PROTOCOL_V1,
+      probeRunsPerModel: 1,
+    };
+  }
+  return c as Campaign;
+}
+
+/** v4 → v5: probe protocol defaults; never fabricate scored data. */
+function migrateCampaignToV5(campaign: unknown): Campaign | null {
+  const c = migrateCampaignToV4(campaign);
+  if (!c?.intentFrame) return c;
+  if (!c.intentFrame.probeProtocolVersion) {
+    const hasV2 = c.probes?.some(p => p.scored?.protocolVersion === PROBE_PROTOCOL_V2);
+    c.intentFrame.probeProtocolVersion = hasV2 ? PROBE_PROTOCOL_V2 : PROBE_PROTOCOL_V1;
+  }
+  if (!c.intentFrame.probeRunsPerModel) {
+    c.intentFrame.probeRunsPerModel = c.probes?.[0]?.scored?.runsPerModel ?? 1;
+  }
+  return c;
+}
 
 function clampStep(step: unknown): 1 | 2 {
   return step === 2 ? 2 : 1;
@@ -73,10 +189,21 @@ function serializeCampaign(campaign: Campaign | null): Campaign | null {
     ...normalized,
     probes: safeProbes(normalized).map(p => ({
       ...p,
-      gemini: {
-        ...p.gemini,
-        simulatedAnswer: (p.gemini?.simulatedAnswer || '').slice(0, 2000),
-      },
+      gemini: p.gemini
+        ? {
+          ...p.gemini,
+          simulatedAnswer: (p.gemini.simulatedAnswer || '').slice(0, 2000),
+        }
+        : undefined,
+      scored: p.scored
+        ? {
+          ...p.scored,
+          attempts: p.scored.attempts.map(a => ({
+            ...a,
+            rawResponse: (a.rawResponse || '').slice(0, MAX_RAW_RESPONSE_CHARS),
+          })),
+        }
+        : undefined,
     })),
   };
 }
@@ -95,8 +222,10 @@ export interface WorkflowState {
   setCustomRegion: (region: string) => void;
 
   campaign: Campaign | null;
-  setCampaign: (campaign: Campaign | null) => void;
+  setCampaign: (campaign: Campaign | null, opts?: SetCampaignOptions) => void;
   updateCampaign: (patch: Partial<Campaign>) => void;
+  /** Freeze the intent coordinate system (governance state bit). One-way this knife. */
+  freezeIntentFrame: () => void;
 
   discoveryConfirmed: boolean;
   setDiscoveryConfirmed: (confirmed: boolean) => void;
@@ -126,12 +255,27 @@ export const useWorkflowStore = create<WorkflowState>()(
       setCustomRegion: (region) => set({ customRegion: region }),
 
       campaign: null,
-      setCampaign: (campaign) => set({ campaign: normalizeCampaign(campaign) }),
+      setCampaign: (campaign, opts) => set((state) => ({
+        campaign: normalizeCampaign(applyFreezeGuard(state.campaign, campaign, opts)),
+      })),
       updateCampaign: (patch) => set((state) => ({
         campaign: state.campaign
-          ? normalizeCampaign({ ...state.campaign, ...patch, updatedAt: new Date().toISOString() })
+          ? normalizeCampaign(applyFreezeGuard(
+            state.campaign,
+            { ...state.campaign, ...patch, updatedAt: new Date().toISOString() },
+          ))
           : null,
       })),
+      freezeIntentFrame: () => set((state) => {
+        const cur = state.campaign?.intentFrame;
+        if (!state.campaign || !cur || cur.frozen) return {};
+        return {
+          campaign: {
+            ...state.campaign,
+            intentFrame: { ...cur, frozen: true, frozenAt: new Date().toISOString() },
+          },
+        };
+      }),
 
       discoveryConfirmed: false,
       setDiscoveryConfirmed: (confirmed) => set({ discoveryConfirmed: confirmed }),
@@ -157,10 +301,14 @@ export const useWorkflowStore = create<WorkflowState>()(
       migrate: (persisted: unknown, version) => {
         const p = (persisted || {}) as Record<string, unknown>;
         if (version < STORAGE_VERSION) {
+          let migrated = p.campaign ? migrateCampaignToV4(p.campaign) : null;
+          if (version < 5 && migrated) {
+            migrated = migrateCampaignToV5(migrated);
+          }
           return {
             ...p,
             currentStep: clampStep(p.currentStep),
-            campaign: p.campaign ? normalizeCampaign(p.campaign as Campaign) : null,
+            campaign: migrated ? normalizeCampaign(migrated) : null,
           };
         }
         return p;

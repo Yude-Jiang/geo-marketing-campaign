@@ -253,7 +253,7 @@ async function startServer() {
           model: config.model,
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 512,
-          temperature: 0.3,
+          temperature: typeof req.body.temperature === 'number' ? req.body.temperature : 0.3,
         }),
         signal: controller.signal,
       });

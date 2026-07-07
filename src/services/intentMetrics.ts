@@ -1,6 +1,5 @@
 /**
- * Deterministic intent-group metrics from baseline probes.
- * LLM synthesis may omit metrics — always compute from probe data.
+ * Deterministic intent-group metrics from baseline probes (M1: reads scored rail).
  */
 
 import type { GeoFailureCategory } from '../types';
@@ -10,13 +9,14 @@ import type {
   QuestionProbe,
   SeedQuestionPreprocessResult,
 } from '../types/campaign';
+import { getProbeScoreView, isProbeScoreable } from './probeScoreAccess';
 
 export function computeIntentGroupMetrics(
   groupQuestionIds: string[],
   baselineProbes: QuestionProbe[],
 ): IntentGroupMetrics {
   const qSet = new Set(groupQuestionIds);
-  const groupProbes = baselineProbes.filter(p => qSet.has(p.questionId));
+  const groupProbes = baselineProbes.filter(p => qSet.has(p.questionId) && isProbeScoreable(p));
 
   if (!groupProbes.length) {
     return {
@@ -29,17 +29,19 @@ export function computeIntentGroupMetrics(
     };
   }
 
+  const views = groupProbes.map(p => getProbeScoreView(p)!);
+
   const stMentionRate =
-    groupProbes.filter(p => p.gemini.stMentioned).length / groupProbes.length;
+    views.reduce((s, v) => s + v.stMentionRate, 0) / views.length;
   const avgVoidSeverity =
-    groupProbes.reduce((s, p) => s + (p.gemini.voidSeverity ?? 0), 0) / groupProbes.length;
-  const criticalVoidCount = groupProbes.filter(
-    p => p.gemini.voidSize === 'critical' || (p.gemini.voidSeverity ?? 0) >= 8,
+    views.reduce((s, v) => s + v.voidSeverity, 0) / views.length;
+  const criticalVoidCount = views.filter(
+    v => v.voidSize === 'critical' || v.voidSeverity >= 8,
   ).length;
 
   const compCounts = new Map<string, number>();
-  for (const p of groupProbes) {
-    for (const c of p.gemini.dominantCompetitors || []) {
+  for (const v of views) {
+    for (const c of v.dominantCompetitors || []) {
       compCounts.set(c, (compCounts.get(c) || 0) + 1);
     }
   }
@@ -49,8 +51,8 @@ export function computeIntentGroupMetrics(
     .map(([name]) => name);
 
   const failCounts = new Map<string, number>();
-  for (const p of groupProbes) {
-    const f = p.gemini.primaryFailure || 'UNKNOWN';
+  for (const v of views) {
+    const f = v.primaryFailure || 'UNKNOWN';
     failCounts.set(f, (failCounts.get(f) || 0) + 1);
   }
   const primaryFailure = ([...failCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]

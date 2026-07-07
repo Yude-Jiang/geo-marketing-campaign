@@ -22,6 +22,7 @@ import type {
   StrategicPlaybookItem,
 } from '../types';
 import type { MultiModelVerificationResult } from '../services/multiModelService';
+import type { ProbeProtocolVersion, ScoredProbeSnapshot } from './probe';
 
 // ─── Shared enums ────────────────────────────────────────────────────────────
 
@@ -70,15 +71,33 @@ export interface CampaignCreateInput {
 
 // ─── Layer 1: SeedQuestion (after AI preprocessing) ──────────────────────────
 
+/**
+ * Semantic anchor — a verifiable entity/data point a monitoring question is
+ * anchored to (e.g. "$0.64 entry price cited"). Structured (not a loose string)
+ * so it can later link to the evidence registry. `source` / `claimId` are the
+ * reserved interfaces for that future linkage (kept nullable this knife).
+ */
+export interface SemanticAnchor {
+  text: string;
+  source?: string | null;
+  claimId?: string | null;
+}
+
 export interface SeedQuestion {
   id: string;
   /** Exact prompt text — frozen for reproducible T0 / T+N re-probes */
   text: string;
   tier: SeedQuestionTier;
-  intentGroupId: string;
+  /**
+   * Stable engineering-dimension id from the bound framework — the alignment
+   * anchor. Re-probe deltas group on this, never on ephemeral LLM clusters.
+   */
+  dimensionId: string;
+  /** @deprecated Ephemeral LLM cluster id; retained for migration only — use dimensionId. */
+  intentGroupId?: string;
   priority: CampaignPriority;
-  /** ST entity AI expects to appear in answers (e.g. product line, part family) */
-  expectedAnchor?: string;
+  /** Structured semantic anchor (replaces the old loose `expectedAnchor` string). */
+  anchor?: SemanticAnchor;
   /** sub_node → parent category question id */
   parentCategoryId?: string;
 }
@@ -90,10 +109,17 @@ export interface IntentGroup {
   description?: string;
 }
 
-/** Output of preprocessing step ① — classify, cluster, prioritise */
+/** Output of preprocessing step ① — classify into fixed dimensions, prioritise */
 export interface SeedQuestionPreprocessResult {
   questions: SeedQuestion[];
+  /**
+   * Dimension-derived groups, built deterministically in code from each
+   * question's dimensionId (NOT LLM clusters). Group id === dimensionId.
+   */
   intentGroups: IntentGroup[];
+  /** Framework this preprocess classified against — redundantly recorded for self-description. */
+  frameworkId: string;
+  frameworkVersion: string;
   preprocessedAt: string;
 }
 
@@ -132,8 +158,12 @@ export interface QuestionProbe {
   probedAt: string;
   ecosystem: TargetEcosystem;
   region: string;
-  /** Primary: Gemini simulation + optional Google Search grounding */
-  gemini: GeminiProbeSnapshot;
+  /** @deprecated v1 simulated rail — v2 uses `scored` only */
+  gemini?: GeminiProbeSnapshot;
+  /** v2: real probes + referee + aggregation */
+  scored?: ScoredProbeSnapshot;
+  /** Set when ecosystem does not support real probing (non-CN). */
+  probeSkipReason?: 'ecosystem_not_supported';
   /** Optional: Google Search claim verification on Gemini marketPulse */
   modelVerification?: ModelVerificationResult;
   /**
@@ -234,11 +264,39 @@ export interface CampaignPlaybook extends StrategicPlaybookItem {
 /** Full AI synthesis output after probes + intent roll-up */
 export interface CampaignSynthesis {
   synthesizedAt: string;
+  /** True when JSON parse failed after repair and the synthesis degraded to an empty shell. */
+  degraded?: boolean;
   brief: CampaignBriefDraft;
   intentDiagnoses: IntentGroupDiagnosis[];
   playbooks: CampaignPlaybook[];
   executiveSummary: string;
   innovationPlays: string[];
+}
+
+// ─── Intent coordinate system (governance + framework binding) ───────────────
+
+/**
+ * The governance wrapper over the intent skeleton. Distinct from CampaignStatus
+ * (which is pipeline progress: draft→probing→ready). `frozen` is the real
+ * governance state bit: once frozen, the questions / dimension bindings / anchors
+ * are write-protected (enforced in workflowStore) and re-probes align against
+ * `frameworkVersion` — the exact version bound here, immune to later framework
+ * evolution (hard-constraint #2).
+ */
+export interface IntentCoordinateSystem {
+  frameworkId: string;
+  frameworkVersion: string;
+  frozen: boolean;
+  /** ISO; required when frozen === true. */
+  frozenAt?: string;
+  /**
+   * Dimensions actually in play for this campaign. The structure supports future
+   * "activate a new dimension" evolution; the operation itself is out of scope.
+   */
+  activeDimensionIds: string[];
+  /** M1: probe protocol frozen alongside framework at confirm. */
+  probeProtocolVersion?: ProbeProtocolVersion;
+  probeRunsPerModel?: number;
 }
 
 // ─── Campaign aggregate (persisted) ─────────────────────────────────────────
@@ -254,6 +312,8 @@ export interface Campaign {
   region: string;
   uiLang: string;
   input: CampaignCreateInput;
+  /** Intent coordinate system: framework binding + freeze state. */
+  intentFrame?: IntentCoordinateSystem;
   preprocess?: SeedQuestionPreprocessResult;
   /** Time-series: filter by phase for baseline vs progress */
   probes: QuestionProbe[];
@@ -298,6 +358,8 @@ export interface CampaignProgressSnapshot {
   intentGroupDeltas: IntentGroupDelta[];
   /** Short AI interpretation for Progress appendix */
   narrative: string;
+  /** True when baseline vs current probe protocol versions differ — deltas not comparable. */
+  protocolMismatch?: boolean;
 }
 
 // ─── UI: confirm page before report generation ────────────────────────────────
@@ -325,4 +387,6 @@ export interface CampaignPipelineProgress {
   detail?: string;
   completedQuestions?: number;
   totalQuestions?: number;
+  completedAttempts?: number;
+  totalAttempts?: number;
 }
